@@ -38,7 +38,7 @@ function Kitchen() {
     localStorage.getItem("kitchenBranch") || BRANCHES[0]
   );
 
-  const HARD_CODED_USER = { id: "kitchen", password: "123" };
+  const HARD_CODED_USER = { id: "kitchen", password: "6969" };
 
   // ✅ Handle login
   const handleLogin = () => {
