@@ -11,15 +11,32 @@ const SUPABASE_ANON_KEY =
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+// 🔖 Branch tabs
+const BRANCHES = [
+  "Phase 6",
+  "Phase 4",
+  "Johar Town",
+  "Bahria Town",
+  "Cloud Kitchen",
+  "Emporium",
+];
+
 function Kitchen() {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [lastUpdate, setLastUpdate] = useState(new Date());
+
+  // 🔐 Simple login
   const [loggedIn, setLoggedIn] = useState(
     localStorage.getItem("kitchenLoggedIn") === "true"
   );
   const [loginInfo, setLoginInfo] = useState({ id: "", password: "" });
   const [loginError, setLoginError] = useState("");
+
+  // 🏷 Current branch tab (persisted)
+  const [selectedBranch, setSelectedBranch] = useState(
+    localStorage.getItem("kitchenBranch") || BRANCHES[0]
+  );
 
   const HARD_CODED_USER = { id: "kitchen", password: "123" };
 
@@ -44,12 +61,15 @@ function Kitchen() {
     setOrders([]);
   };
 
-  // ✅ Fetch active orders
-  async function fetchOrders() {
+  // ✅ Fetch active orders (filtered by branch)
+  async function fetchOrders(branch = selectedBranch) {
+    if (!branch) return;
     setLoading(true);
+
     const { data, error } = await supabase
       .from("orders")
       .select("*")
+      .eq("branch", branch)
       .not("status", "in", '("Completed","Cancelled")')
       .order("created_at", { ascending: true });
 
@@ -78,36 +98,72 @@ function Kitchen() {
     }
   }
 
-  // ✅ Realtime subscription
+  // ✅ Realtime subscription (rebind when branch or login changes)
   useEffect(() => {
-    if (!loggedIn) return;
+    if (!loggedIn || !selectedBranch) return;
 
-    console.log("🔌 Setting up Supabase Realtime...");
-    fetchOrders();
+    console.log("🔌 Setting up Supabase Realtime for branch:", selectedBranch);
+    // Initial load
+    fetchOrders(selectedBranch);
 
+    // Use server-side filter so only events for this branch arrive
     const channel = supabase
-      .channel("orders-realtime")
+      .channel(`orders-realtime-${selectedBranch}`)
       .on(
         "postgres_changes",
-        { event: "INSERT", schema: "public", table: "orders" },
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "orders",
+          filter: `branch=eq.${selectedBranch}`,
+        },
         (payload) => {
           console.log("🆕 New order received:", payload.new);
-          setOrders((prev) => [...prev, payload.new]);
+          setOrders((prev) => {
+            // if completed/cancelled shouldn't appear; but insert will be active by default
+            if (
+              ["Completed", "Cancelled"].includes(payload.new?.status ?? "")
+            ) {
+              return prev;
+            }
+            // keep in time order
+            return [...prev, payload.new].sort(
+              (a, b) =>
+                new Date(a.created_at).getTime() -
+                new Date(b.created_at).getTime()
+            );
+          });
         }
       )
       .on(
         "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "orders" },
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "orders",
+          filter: `branch=eq.${selectedBranch}`,
+        },
         (payload) => {
           console.log("♻️ Order updated:", payload.new);
-          setOrders((prev) =>
-            prev.map((o) => (o.id === payload.new.id ? payload.new : o))
-          );
+          setOrders((prev) => {
+            // remove if now completed/cancelled
+            if (
+              ["Completed", "Cancelled"].includes(payload.new?.status ?? "")
+            ) {
+              return prev.filter((o) => o.id !== payload.new.id);
+            }
+            return prev.map((o) => (o.id === payload.new.id ? payload.new : o));
+          });
         }
       )
       .on(
         "postgres_changes",
-        { event: "DELETE", schema: "public", table: "orders" },
+        {
+          event: "DELETE",
+          schema: "public",
+          table: "orders",
+          filter: `branch=eq.${selectedBranch}`,
+        },
         (payload) => {
           console.log("🗑 Order deleted:", payload.old);
           setOrders((prev) => prev.filter((o) => o.id !== payload.old.id));
@@ -116,21 +172,28 @@ function Kitchen() {
       .subscribe();
 
     return () => {
-      console.log("🧹 Cleaning up Realtime...");
+      console.log("🧹 Cleaning up Realtime for branch:", selectedBranch);
       supabase.removeChannel(channel);
-      supabase.removeAllChannels();
     };
-  }, [loggedIn]);
+  }, [loggedIn, selectedBranch]);
 
-  // ✅ Auto-refresh every 30 s
+  // ✅ Auto-refresh every 30 s (per branch)
   useEffect(() => {
-    if (!loggedIn) return;
+    if (!loggedIn || !selectedBranch) return;
     const interval = setInterval(() => {
-      console.log("🔄 Backup refresh triggered");
-      fetchOrders();
+      console.log("🔄 Backup refresh triggered for:", selectedBranch);
+      fetchOrders(selectedBranch);
     }, 30000);
     return () => clearInterval(interval);
-  }, [loggedIn]);
+  }, [loggedIn, selectedBranch]);
+
+  // ✅ Change branch tab
+  const handleBranchChange = (branch) => {
+    setSelectedBranch(branch);
+    localStorage.setItem("kitchenBranch", branch);
+    // Immediate fetch so the UI updates even before realtime pushes arrive
+    fetchOrders(branch);
+  };
 
   // ==============================
   // 🔒 LOGIN SCREEN
@@ -191,32 +254,50 @@ function Kitchen() {
   return (
     <div className="min-h-screen bg-gray-900 p-4 sm:p-6">
       {/* Header */}
-      <div className="bg-gradient-to-r from-orange-500 to-red-500 rounded-lg shadow-xl p-4 sm:p-6 mb-6 flex justify-between items-center">
-        <div className="text-white text-center flex-1">
-          <h1 className="text-2xl sm:text-4xl font-black mb-1">
-            🍔 KITCHEN DISPLAY
-          </h1>
+      <div className="bg-gradient-to-r from-orange-500 to-red-500 rounded-lg shadow-xl p-4 sm:p-6 mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div className="text-white text-center sm:text-left">
+          <h1 className="text-2xl sm:text-4xl font-black mb-1">🍔 KITCHEN DISPLAY</h1>
           <p className="text-xs sm:text-sm opacity-80">
             Last updated: {lastUpdate.toLocaleTimeString()}
           </p>
         </div>
-        <button
-          onClick={handleLogout}
-          className="bg-white text-red-600 font-bold px-4 py-2 rounded-lg shadow-md hover:bg-gray-100 transition"
-        >
-          Logout
-        </button>
+        <div className="flex items-center gap-2 justify-center sm:justify-end">
+          <button
+            onClick={() => fetchOrders()}
+            disabled={loading}
+            className="bg-white/90 hover:bg-white text-orange-600 px-4 py-2 rounded-lg font-bold transition-colors"
+          >
+            {loading ? "🔄 Refreshing..." : "🔄 Refresh"}
+          </button>
+          <button
+            onClick={handleLogout}
+            className="bg-white text-red-600 font-bold px-4 py-2 rounded-lg shadow-md hover:bg-gray-100 transition"
+          >
+            Logout
+          </button>
+        </div>
       </div>
 
-      {/* Refresh */}
-      <div className="text-center mb-6">
-        <button
-          onClick={fetchOrders}
-          disabled={loading}
-          className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold disabled:bg-gray-400 transition-colors"
-        >
-          {loading ? "🔄 Refreshing..." : "🔄 Refresh Orders"}
-        </button>
+      {/* Branch Tabs */}
+      <div className="mb-6 overflow-x-auto">
+        <div className="flex gap-2 min-w-max">
+          {BRANCHES.map((b) => {
+            const isActive = b === selectedBranch;
+            return (
+              <button
+                key={b}
+                onClick={() => handleBranchChange(b)}
+                className={`px-4 py-2 rounded-full text-sm font-bold transition-all whitespace-nowrap ${
+                  isActive
+                    ? "bg-orange-500 text-white shadow"
+                    : "bg-white text-gray-800 hover:bg-gray-100"
+                }`}
+              >
+                {b}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {/* Orders Grid */}
@@ -229,7 +310,9 @@ function Kitchen() {
         <div className="text-center text-white text-lg py-20">
           <div className="text-6xl mb-4">✅</div>
           <p className="text-2xl font-bold">No Active Orders</p>
-          <p className="text-sm opacity-70 mt-2">All caught up!</p>
+          <p className="text-sm opacity-70 mt-2">
+            Branch: <span className="font-semibold">{selectedBranch}</span>
+          </p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
@@ -246,6 +329,9 @@ function Kitchen() {
                 <p className="text-center text-sm font-semibold opacity-90">
                   {new Date(order.created_at).toLocaleTimeString()}
                 </p>
+                <p className="text-center text-xs opacity-90 mt-1">
+                  🏷 Branch: <span className="font-bold">{order.branch}</span>
+                </p>
               </div>
 
               {/* Customer Info */}
@@ -253,9 +339,7 @@ function Kitchen() {
                 <p className="text-gray-800 text-sm font-bold mb-1">
                   👤 {order.customer_name}
                 </p>
-                <p className="text-gray-700 text-xs">
-                  📱 {order.customer_phone}
-                </p>
+                <p className="text-gray-700 text-xs">📱 {order.customer_phone}</p>
                 <div className="flex gap-2 mt-2">
                   <span
                     className={`px-2 py-1 rounded text-xs font-bold ${
@@ -264,75 +348,65 @@ function Kitchen() {
                         : "bg-green-500 text-white"
                     }`}
                   >
-                    {order.order_type === "delivery"
-                      ? "🚗 DELIVERY"
-                      : "🏃 PICKUP"}
+                    {order.order_type === "delivery" ? "🚗 DELIVERY" : "🏃 PICKUP"}
                   </span>
                   <span className="px-2 py-1 rounded text-xs font-bold bg-gray-200 text-gray-800">
-                    💳 {order.payment_method.toUpperCase()}
+                    💳 {String(order.payment_method || "").toUpperCase()}
                   </span>
                 </div>
               </div>
 
               {/* Items */}
               <div className="bg-yellow-50 rounded-lg p-3 mb-3 border-2 border-yellow-200">
-                <h3 className="font-black text-sm mb-2 text-gray-800">
-                  📋 ORDER ITEMS:
-                </h3>
+                <h3 className="font-black text-sm mb-2 text-gray-800">📋 ORDER ITEMS:</h3>
                 <ul className="space-y-2">
-                  {order.items.map((item, i) => (
-                    <li
-                      key={i}
-                      className="border-b border-yellow-200 pb-2 last:border-b-0"
-                    >
-                      <div className="flex justify-between items-start">
-                        <span className="font-bold text-sm text-gray-800">
-                          {item.name}
-                        </span>
-                        <span className="bg-orange-500 text-white px-2 py-1 rounded-full text-xs font-black">
-                          x{item.quantity}
-                        </span>
-                      </div>
-
-                      {item.sauces?.length > 0 && (
-                        <div className="mt-1">
-                          <p className="text-xs font-bold text-gray-600">
-                            🥫 Sauces:
-                          </p>
-                          <ul className="ml-4 list-disc text-xs text-gray-700">
-                            {item.sauces.map((sauce, idx) => (
-                              <li key={idx}>{sauce}</li>
-                            ))}
-                          </ul>
+                  {order.items.map((item, i) => {
+                    const addons = item.addons || item.add_ons || []; // handle both keys
+                    return (
+                      <li key={i} className="border-b border-yellow-200 pb-2 last:border-b-0">
+                        <div className="flex justify-between items-start">
+                          <span className="font-bold text-sm text-gray-800">{item.name}</span>
+                          <span className="bg-orange-500 text-white px-2 py-1 rounded-full text-xs font-black">
+                            x{item.quantity}
+                          </span>
                         </div>
-                      )}
 
-                      {item.add_ons?.length > 0 && (
-                        <div className="mt-1">
-                          <p className="text-xs font-bold text-gray-600">
-                            ➕ Add-ons:
-                          </p>
-                          <ul className="ml-4 list-disc text-xs text-gray-700">
-                            {item.add_ons.map((addon, idx) => (
-                              <li key={idx}>{addon}</li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
+                        {Array.isArray(item.sauces) && item.sauces.length > 0 && (
+                          <div className="mt-1">
+                            <p className="text-xs font-bold text-gray-600">🥫 Sauces:</p>
+                            <ul className="ml-4 list-disc text-xs text-gray-700">
+                              {item.sauces.map((s, idx) => (
+                                <li key={idx}>{s}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
 
-                      {item.withSeasoning && (
-                        <div className="mt-1 bg-green-500 text-white text-xs px-2 py-1 rounded inline-block">
-                          ✨ WITH SEASONING
-                        </div>
-                      )}
+                        {Array.isArray(addons) && addons.length > 0 && (
+                          <div className="mt-1">
+                            <p className="text-xs font-bold text-gray-600">➕ Add-ons:</p>
+                            <ul className="ml-4 list-disc text-xs text-gray-700">
+                              {addons.map((a, idx) => (
+                                <li key={idx}>{a}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
 
-                      {item.remarks?.trim() && (
-                        <div className="mt-2 bg-red-100 border-2 border-red-400 text-red-900 text-xs rounded px-2 py-2 font-bold">
-                          ⚠️ SPECIAL REQUEST: {item.remarks}
-                        </div>
-                      )}
-                    </li>
-                  ))}
+                        {item.withSeasoning && (
+                          <div className="mt-1 bg-green-500 text-white text-xs px-2 py-1 rounded inline-block">
+                            ✨ WITH SEASONING
+                          </div>
+                        )}
+
+                        {item.remarks?.trim() && (
+                          <div className="mt-2 bg-red-100 border-2 border-red-400 text-red-900 text-xs rounded px-2 py-2 font-bold">
+                            ⚠️ SPECIAL REQUEST: {item.remarks}
+                          </div>
+                        )}
+                      </li>
+                    );
+                  })}
                 </ul>
               </div>
 
