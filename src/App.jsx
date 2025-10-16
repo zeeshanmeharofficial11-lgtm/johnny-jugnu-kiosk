@@ -24,6 +24,10 @@ function App() {
   const [deliveryCharges, setDeliveryCharges] = useState(0);
   const [orderNumber, setOrderNumber] = useState(null);
 
+  // NEW: Branch selection state
+  const BRANCHES = ["Phase 6", "Phase 4", "Johar Town", "Bahria Town", "Cloud Kitchen", "Emporium"];
+  const [branch, setBranch] = useState(''); // kept across new orders for the logged-in cashier
+
   // Customization modal state
   const [showCustomizationModal, setShowCustomizationModal] = useState(false);
   const [currentItem, setCurrentItem] = useState(null);
@@ -31,7 +35,6 @@ function App() {
   const [selectedAddons, setSelectedAddons] = useState([]);
 
   // ---- Hardcoded credentials (for kiosk/dev only) ----
-  // WARNING: Hardcoding credentials is insecure. Use this only for offline/dev kiosk mode.
   const HARD_CODED_USERS = {
     spider: '123',
     lupin: '123',
@@ -46,6 +49,7 @@ function App() {
     const payload = {
       cashier: { name: cashierInfo.name || '', id: cashierInfo.id || '' },
       currentStep: stepOverride ?? currentStep,
+      branch: branch || '',
       ts: Date.now()
     };
     // never store password
@@ -68,6 +72,7 @@ function App() {
         const step = ['cashier','customer','menu','confirm','receipt'].includes(sess.currentStep) ? sess.currentStep : 'customer';
         setCurrentStep(step);
       }
+      if (sess?.branch) setBranch(sess.branch);
     } catch (e) {
       console.warn('Failed to parse saved session:', e);
     }
@@ -76,7 +81,6 @@ function App() {
   // Helper to set step + persist
   const gotoStep = (step) => {
     setCurrentStep(step);
-    // save immediately with the new step
     setTimeout(() => saveSession(step), 0);
   };
   // ===================================================
@@ -116,7 +120,9 @@ function App() {
           delivery_charge: orderData.deliveryCharge,
           grand_total: orderData.grandTotal,
           status: orderData.status,
-          estimated_time: orderData.estimatedTime
+          estimated_time: orderData.estimatedTime,
+          // NEW: branch (ensure your Supabase table has a 'branch' column)
+          branch: orderData.branch
         })
       });
       
@@ -238,16 +244,12 @@ function App() {
     }
 
     if (HARD_CODED_USERS[enteredId] && HARD_CODED_USERS[enteredId] === enteredPassword) {
-      // success
       setLoginError('');
-      // If user didn't type a display name, set it from id capitalized.
       if (!cashierInfo.name || cashierInfo.name.trim() === '') {
         const displayName = enteredId.charAt(0).toUpperCase() + enteredId.slice(1);
         setCashierInfo(ci => ({ ...ci, name: displayName }));
       }
-      // clear password in state for safety
       setCashierInfo(ci => ({ ...ci, password: '' }));
-      // persist session immediately
       setTimeout(() => saveSession('customer'), 0);
       gotoStep('customer');
     } else {
@@ -264,27 +266,32 @@ function App() {
     setShowCustomizationModal(true);
   };
 
-  // Toggle sauce selection (max 2, duplicates allowed)
   const toggleSauce = (sauce) => {
-    if (selectedSauces.length >= 2) {
+    if (selectedSauces.length >= 2 && !selectedSauces.find(s => s.id === sauce.id)) {
       alert("You can only select 2 sauces total");
       return;
     }
-    setSelectedSauces([...selectedSauces, sauce]);
+    // toggle behavior
+    if (selectedSauces.find(s => s.id === sauce.id)) {
+      setSelectedSauces(selectedSauces.filter(s => s.id !== sauce.id));
+    } else {
+      setSelectedSauces([...selectedSauces, sauce]);
+    }
   };
 
-  // Toggle addon selection (duplicates allowed)
   const toggleAddon = (addon) => {
-    setSelectedAddons([...selectedAddons, addon]);
+    if (selectedAddons.find(a => a.id === addon.id)) {
+      setSelectedAddons(selectedAddons.filter(a => a.id !== addon.id));
+    } else {
+      setSelectedAddons([...selectedAddons, addon]);
+    }
   };
 
-  // Calculate total price with addons
   const getCustomizedPrice = () => {
     const addonsTotal = selectedAddons.reduce((sum, addon) => sum + addon.price, 0);
     return currentItem.price + addonsTotal;
   };
 
-  // Add customized item to cart
   const addCustomizedToCart = () => {
     if (selectedSauces.length !== 2) {
       alert('Please select exactly 2 sauces');
@@ -365,6 +372,7 @@ function App() {
       customer: customerInfo,
       orderType,
       paymentMethod,
+      branch, // NEW
       items: cart.map(item => ({
         name: item.name,
         quantity: item.quantity,
@@ -424,19 +432,17 @@ function App() {
   const startNewOrder = () => {
     setCart([]);
     setCustomerInfo({ name: '', phone: '', address: '', instructions: '' });
-    // Keep cashier logged in for next order, but clear password
+    // Keep cashier and branch for next order, but clear password
     setCashierInfo(ci => ({ name: ci.name, id: ci.id, password: '' }));
     setPaymentMethod('cash');
     setDeliveryCharges(0);
     setActiveCategory('mains');
     setOrderNumber(null);
     setLoginError('');
-    // Keep session and move to customer step
     saveSession('customer');
     gotoStep('customer');
   };
 
-  // Optional full logout (if you ever want a "Logout" button)
   const logout = () => {
     setCart([]);
     setCustomerInfo({ name: '', phone: '', address: '', instructions: '' });
@@ -446,6 +452,7 @@ function App() {
     setActiveCategory('mains');
     setOrderNumber(null);
     setLoginError('');
+    setBranch(''); // clear branch on logout
     clearSession();
     gotoStep('cashier');
   };
@@ -523,12 +530,12 @@ function App() {
                   <button
                     key={sauce.id}
                     onClick={() => toggleSauce(sauce)}
-                    disabled={!selectedSauces.find(s => s.id === sauce.id) && selectedSauces.length >= 2}
                     className={`p-3 rounded-lg border-2 transition-all ${
                       selectedSauces.find(s => s.id === sauce.id)
                         ? 'border-orange-500 bg-orange-50 shadow-md'
                         : 'border-gray-300 hover:border-orange-300'
                     } ${!selectedSauces.find(s => s.id === sauce.id) && selectedSauces.length >= 2 ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    disabled={!selectedSauces.find(s => s.id === sauce.id) && selectedSauces.length >= 2}
                   >
                     <div className="text-3xl mb-1">{sauce.image}</div>
                     <div className="text-sm font-semibold">{sauce.name}</div>
@@ -666,8 +673,6 @@ function App() {
           >
             Continue to Customer Details
           </button>
-
-          {/* Optional Logout button (hidden on cashier step) could go here */}
         </div>
       </div>
     );
@@ -680,7 +685,9 @@ function App() {
         <div className="bg-white rounded-lg shadow-lg p-6">
           <div className="text-center mb-6">
             <h1 className="text-3xl font-bold text-gray-800 mb-2">JOHNNY & JUGNU</h1>
-            <p className="text-sm text-gray-600">Cashier: {cashierInfo.name} (ID: {cashierInfo.id})</p>
+            <p className="text-sm text-gray-600">
+              Cashier: {cashierInfo.name} (ID: {cashierInfo.id})
+            </p>
           </div>
           
           <h2 className="text-2xl font-bold mb-6 text-center">Customer Information</h2>
@@ -731,6 +738,22 @@ function App() {
                 required
               />
             </div>
+          </div>
+
+          {/* NEW: Branch Dropdown */}
+          <div className="mt-4">
+            <label className="block text-sm font-medium mb-2">Branch *</label>
+            <select
+              value={branch}
+              onChange={(e) => { setBranch(e.target.value); saveSession(); }}
+              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+              required
+            >
+              <option value="" disabled>Select branch</option>
+              {BRANCHES.map(b => (
+                <option key={b} value={b}>{b}</option>
+              ))}
+            </select>
           </div>
 
           {orderType === 'delivery' && (
@@ -798,7 +821,7 @@ function App() {
             </button>
             <button
               onClick={() => { saveSession('menu'); gotoStep('menu'); }}
-              disabled={!customerInfo.name || !customerInfo.phone || (orderType === 'delivery' && !customerInfo.address)}
+              disabled={!customerInfo.name || !customerInfo.phone || !branch || (orderType === 'delivery' && !customerInfo.address)}
               className="flex-1 py-3 bg-orange-500 text-white rounded-lg hover:bg-orange-600 disabled:bg-gray-300"
             >
               Continue to Menu
@@ -829,6 +852,7 @@ function App() {
             <h3 className="font-black text-blue-800 mb-2 text-sm">CASHIER DETAILS</h3>
             <p className="text-xs font-bold">Name: {cashierInfo.name}</p>
             <p className="text-xs font-bold">ID: {cashierInfo.id}</p>
+            <p className="text-xs font-bold">Branch: {branch || '—'}</p>
           </div>
           <div className="bg-green-50 p-3 rounded-lg border-2 border-green-200">
             <h3 className="font-black text-green-800 mb-2 text-sm">CUSTOMER INFO</h3>
@@ -887,7 +911,6 @@ function App() {
                     </div>
                   )}
 
-                  {/* Remarks */}
                   {item.remarks && (
                     <div className="mt-2 bg-yellow-100 p-2 rounded border border-yellow-400">
                       <p className="text-xs font-bold text-yellow-800">REMARKS: {item.remarks}</p>
@@ -978,6 +1001,7 @@ function App() {
               <div className="bg-gray-50 p-4 rounded-lg">
                 <p><strong>Cashier:</strong> {cashierInfo.name}</p>
                 <p><strong>ID:</strong> {cashierInfo.id}</p>
+                <p><strong>Branch:</strong> {branch || '—'}</p>
               </div>
             </div>
             
@@ -1113,7 +1137,9 @@ function App() {
             <div className="flex justify-between items-center">
               <div>
                 <h1 className="text-4xl font-bold text-gray-800 mb-2">JOHNNY & JUGNU</h1>
-                <p className="text-gray-600">Cashier: {cashierInfo.name} | Customer: {customerInfo.name}</p>
+                <p className="text-gray-600">
+                  Cashier: {cashierInfo.name} | Customer: {customerInfo.name} {branch ? `| Branch: ${branch}` : ''}
+                </p>
               </div>
               <div className="relative">
                 <button
@@ -1163,7 +1189,6 @@ function App() {
                   </button>
                 </div>
 
-                {/* Optional logout for kiosk supervisor */}
                 <div className="mt-4">
                   <button
                     onClick={logout}
