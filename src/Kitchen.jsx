@@ -21,6 +21,17 @@ const BRANCHES = [
   "Emporium",
 ];
 
+// 🔤 Payment label formatter (shows full “Marketing PR Tab”)
+function formatPayment(pm) {
+  const val = String(pm || "").toLowerCase();
+  if (val === "marketing" || val === "marketing pr tab" || val === "marketing_pr") return "Marketing PR Tab";
+  if (val === "credit") return "Credit Card";
+  if (val === "online") return "Online";
+  if (val === "cash") return "Cash";
+  // Fallback to raw (already human text from DB)
+  return pm || "—";
+}
+
 function Kitchen() {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -120,13 +131,9 @@ function Kitchen() {
         (payload) => {
           console.log("🆕 New order received:", payload.new);
           setOrders((prev) => {
-            // if completed/cancelled shouldn't appear; but insert will be active by default
-            if (
-              ["Completed", "Cancelled"].includes(payload.new?.status ?? "")
-            ) {
+            if (["Completed", "Cancelled"].includes(payload.new?.status ?? "")) {
               return prev;
             }
-            // keep in time order
             return [...prev, payload.new].sort(
               (a, b) =>
                 new Date(a.created_at).getTime() -
@@ -146,10 +153,7 @@ function Kitchen() {
         (payload) => {
           console.log("♻️ Order updated:", payload.new);
           setOrders((prev) => {
-            // remove if now completed/cancelled
-            if (
-              ["Completed", "Cancelled"].includes(payload.new?.status ?? "")
-            ) {
+            if (["Completed", "Cancelled"].includes(payload.new?.status ?? "")) {
               return prev.filter((o) => o.id !== payload.new.id);
             }
             return prev.map((o) => (o.id === payload.new.id ? payload.new : o));
@@ -191,7 +195,6 @@ function Kitchen() {
   const handleBranchChange = (branch) => {
     setSelectedBranch(branch);
     localStorage.setItem("kitchenBranch", branch);
-    // Immediate fetch so the UI updates even before realtime pushes arrive
     fetchOrders(branch);
   };
 
@@ -241,7 +244,7 @@ function Kitchen() {
             </button>
           </div>
           <p className="text-xs text-gray-500 text-center mt-4">
-            Demo credentials: <strong>kitchen / 123</strong>
+            Demo credentials: <strong>kitchen / 6969</strong>
           </p>
         </div>
       </div>
@@ -351,7 +354,7 @@ function Kitchen() {
                     {order.order_type === "delivery" ? "🚗 DELIVERY" : "🏃 PICKUP"}
                   </span>
                   <span className="px-2 py-1 rounded text-xs font-bold bg-gray-200 text-gray-800">
-                    💳 {String(order.payment_method || "").toUpperCase()}
+                    💳 {formatPayment(order.payment_method)}
                   </span>
                 </div>
               </div>
@@ -361,7 +364,7 @@ function Kitchen() {
                 <h3 className="font-black text-sm mb-2 text-gray-800">📋 ORDER ITEMS:</h3>
                 <ul className="space-y-2">
                   {order.items.map((item, i) => {
-                    const addons = item.addons || item.add_ons || []; // handle both keys
+                    const addons = item.addons || item.add_ons || [];
                     return (
                       <li key={i} className="border-b border-yellow-200 pb-2 last:border-b-0">
                         <div className="flex justify-between items-start">
