@@ -266,19 +266,24 @@ function App() {
     setShowCustomizationModal(true);
   };
 
-  const toggleSauce = (sauce) => {
-    if (selectedSauces.length >= 2 && !selectedSauces.find(s => s.id === sauce.id)) {
+  // --- Sauces: allow duplicates (max 2) ---
+  const addSauce = (sauce) => {
+    if (selectedSauces.length >= 2) {
       alert("You can only select 2 sauces total");
       return;
     }
-    // toggle behavior
-    if (selectedSauces.find(s => s.id === sauce.id)) {
-      setSelectedSauces(selectedSauces.filter(s => s.id !== sauce.id));
-    } else {
-      setSelectedSauces([...selectedSauces, sauce]);
-    }
+    setSelectedSauces([...selectedSauces, sauce]); // push duplicate allowed
   };
 
+  const removeSauceAt = (idx) => {
+    const next = [...selectedSauces];
+    next.splice(idx, 1);
+    setSelectedSauces(next);
+  };
+
+  const sauceCount = (sauceId) => selectedSauces.filter((s) => s.id === sauceId).length;
+
+  // Add-ons toggle (no duplicates)
   const toggleAddon = (addon) => {
     if (selectedAddons.find(a => a.id === addon.id)) {
       setSelectedAddons(selectedAddons.filter(a => a.id !== addon.id));
@@ -303,7 +308,7 @@ function App() {
       cartId: Date.now() + Math.random(),
       quantity: 1,
       finalPrice: getCustomizedPrice(),
-      sauces: selectedSauces,
+      sauces: selectedSauces, // duplicates preserved
       addons: selectedAddons,
       remarks: ''
     };
@@ -380,7 +385,7 @@ function App() {
         totalPrice: item.finalPrice * item.quantity,
         withSeasoning: item.withSeasoning ? true : false,
         category: item.category,
-        sauces: item.sauces ? item.sauces.map(s => s.name) : [],
+        sauces: item.sauces ? item.sauces.map(s => s.name) : [], // duplicates preserved
         addons: item.addons ? item.addons.map(a => a.name) : [],
         remarks: item.remarks || ''
       })),
@@ -517,31 +522,61 @@ function App() {
           </div>
 
           <div className="p-6">
-            {/* Select Sauces */}
+            {/* Select Sauces (duplicates allowed) */}
             <div className="mb-6">
               <h3 className="text-lg font-bold mb-3 flex items-center gap-2">
                 <span className="bg-orange-100 text-orange-800 px-3 py-1 rounded-full text-sm">
                   {selectedSauces.length}/2 Selected
                 </span>
-                Select 2 Sauces (Required)
+                Select 2 Sauces (Duplicates Allowed)
               </h3>
+
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                {availableSauces.map(sauce => (
-                  <button
-                    key={sauce.id}
-                    onClick={() => toggleSauce(sauce)}
-                    className={`p-3 rounded-lg border-2 transition-all ${
-                      selectedSauces.find(s => s.id === sauce.id)
-                        ? 'border-orange-500 bg-orange-50 shadow-md'
-                        : 'border-gray-300 hover:border-orange-300'
-                    } ${!selectedSauces.find(s => s.id === sauce.id) && selectedSauces.length >= 2 ? 'opacity-50 cursor-not-allowed' : ''}`}
-                    disabled={!selectedSauces.find(s => s.id === sauce.id) && selectedSauces.length >= 2}
-                  >
-                    <div className="text-3xl mb-1">{sauce.image}</div>
-                    <div className="text-sm font-semibold">{sauce.name}</div>
-                  </button>
-                ))}
+                {availableSauces.map((sauce) => {
+                  const count = sauceCount(sauce.id);
+                  const atLimit = selectedSauces.length >= 2;
+                  return (
+                    <button
+                      key={sauce.id}
+                      onClick={() => addSauce(sauce)}
+                      disabled={atLimit}
+                      className={`relative p-3 rounded-lg border-2 transition-all ${
+                        count > 0 ? 'border-orange-500 bg-orange-50 shadow-md' : 'border-gray-300 hover:border-orange-300'
+                      } ${atLimit ? 'opacity-60 cursor-not-allowed' : ''}`}
+                      title={atLimit ? 'Maximum 2 sauces selected' : 'Add sauce'}
+                    >
+                      <div className="text-3xl mb-1">{sauce.image}</div>
+                      <div className="text-sm font-semibold">{sauce.name}</div>
+                      {count > 0 && (
+                        <span className="absolute top-2 right-2 text-xs font-black bg-orange-600 text-white px-2 py-0.5 rounded-full">
+                          x{count}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
               </div>
+
+              {/* Selected list with quick remove */}
+              {selectedSauces.length > 0 && (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {selectedSauces.map((s, idx) => (
+                    <span
+                      key={`${s.id}-${idx}`}
+                      className="inline-flex items-center gap-2 bg-orange-100 text-orange-800 px-2 py-1 rounded-full text-xs font-semibold"
+                    >
+                      {s.name}
+                      <button
+                        onClick={() => removeSauceAt(idx)}
+                        className="bg-orange-600 text-white rounded-full px-1 leading-none"
+                        title="Remove"
+                      >
+                        ×
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Select Add-ons */}
@@ -781,7 +816,7 @@ function App() {
 
           <div className="mt-6">
             <label className="block text-sm font-medium mb-2">Payment Method</label>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               <button
                 onClick={() => setPaymentMethod('cash')}
                 className={`py-3 rounded-lg border-2 flex items-center justify-center gap-2 ${
@@ -808,6 +843,16 @@ function App() {
               >
                 <span className="text-xl">📱</span>
                 <span className="text-sm font-medium">Online</span>
+              </button>
+              {/* NEW: Marketing PR Tab */}
+              <button
+                onClick={() => setPaymentMethod('marketing')}
+                className={`py-3 rounded-lg border-2 flex items-center justify-center gap-2 ${
+                  paymentMethod === 'marketing' ? 'border-pink-500 bg-pink-50' : 'border-gray-300'
+                }`}
+              >
+                <span className="text-xl">📣</span>
+                <span className="text-sm font-medium">Marketing PR Tab</span>
               </button>
             </div>
           </div>
@@ -865,7 +910,12 @@ function App() {
         <div className="bg-orange-50 p-3 rounded-lg border-2 border-orange-200 mb-6">
           <div className="grid grid-cols-2 gap-2 text-xs font-bold">
             <p>Type: <span className="text-orange-800">{orderType.toUpperCase()}</span></p>
-            <p>Payment: <span className="text-orange-800">{paymentMethod === 'cash' ? 'CASH' : paymentMethod === 'credit' ? 'CREDIT CARD' : 'ONLINE PAYMENT'}</span></p>
+            <p>Payment: <span className="text-orange-800">{
+              paymentMethod === 'cash' ? 'CASH' :
+              paymentMethod === 'credit' ? 'CREDIT CARD' :
+              paymentMethod === 'online' ? 'ONLINE PAYMENT' :
+              paymentMethod === 'marketing' ? 'MARKETING PR TAB' : (paymentMethod || '').toUpperCase()
+            }</span></p>
             {orderType === 'delivery' && customerInfo.address && (
               <p className="col-span-2">Address: <span className="text-orange-800">{customerInfo.address}</span></p>
             )}
@@ -1011,7 +1061,12 @@ function App() {
                 <p><strong>Name:</strong> {customerInfo.name}</p>
                 <p><strong>Phone:</strong> {customerInfo.phone}</p>
                 <p><strong>Order Type:</strong> {orderType}</p>
-                <p><strong>Payment Method:</strong> {paymentMethod === 'cash' ? 'Cash' : paymentMethod === 'credit' ? 'Credit Card' : 'Online Payment'}</p>
+                <p><strong>Payment Method:</strong> {
+                  paymentMethod === 'cash' ? 'Cash' :
+                  paymentMethod === 'credit' ? 'Credit Card' :
+                  paymentMethod === 'online' ? 'Online Payment' :
+                  paymentMethod === 'marketing' ? 'Marketing PR Tab' : paymentMethod
+                }</p>
                 {orderType === 'delivery' && <p><strong>Address:</strong> {customerInfo.address}</p>}
                 {customerInfo.instructions && <p><strong>Instructions:</strong> {customerInfo.instructions}</p>}
               </div>
@@ -1230,12 +1285,12 @@ function App() {
                         <div className="font-medium text-xs sm:text-sm truncate">{item.name}</div>
                         {item.sauces && item.sauces.length > 0 && (
                           <div className="text-xs text-blue-600 mt-1">
-                            Sauces: {item.sauces.map(s => s.name).join(', ')}
+                            Sauces: {item.sauces.map(s => (typeof s === 'string' ? s : s.name)).join(', ')}
                           </div>
                         )}
                         {item.addons && item.addons.length > 0 && (
                           <div className="text-xs text-green-600 mt-1">
-                            Add-ons: {item.addons.map(a => a.name).join(', ')}
+                            Add-ons: {item.addons.map(a => (typeof a === 'string' ? a : a.name)).join(', ')}
                           </div>
                         )}
                         {item.withSeasoning && (
