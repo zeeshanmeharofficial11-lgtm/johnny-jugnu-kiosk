@@ -22,18 +22,35 @@ const BRANCHES = [
 ];
 
 // 🔤 Payment label formatter (shows full “Marketing PR Tab”)
-function formatPayment(pm) {
+function formatPayment(pm?: string | null) {
   const val = String(pm || "").toLowerCase();
   if (val === "marketing" || val === "marketing pr tab" || val === "marketing_pr") return "Marketing PR Tab";
   if (val === "credit") return "Credit Card";
   if (val === "online") return "Online";
   if (val === "cash") return "Cash";
-  // Fallback to raw (already human text from DB)
   return pm || "—";
 }
 
+// 🧹 Items may arrive as JSON string or already-parsed array
+function normalizeItems(items: any): Array<any> {
+  if (!items) return [];
+  if (Array.isArray(items)) return items;
+  try {
+    const parsed = JSON.parse(items);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+// 💵 Currency helper (keeps it readable if value is string/number)
+function formatPKR(v: any) {
+  const num = typeof v === "number" ? v : Number(v ?? 0);
+  return `PKR ${num.toLocaleString("en-PK", { maximumFractionDigits: 0 })}`;
+}
+
 function Kitchen() {
-  const [orders, setOrders] = useState([]);
+  const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [lastUpdate, setLastUpdate] = useState(new Date());
 
@@ -94,7 +111,7 @@ function Kitchen() {
   }
 
   // ✅ Update order status
-  async function updateOrderStatus(orderId, status) {
+  async function updateOrderStatus(orderId: number | string, status: string) {
     const { error } = await supabase
       .from("orders")
       .update({ status })
@@ -192,7 +209,7 @@ function Kitchen() {
   }, [loggedIn, selectedBranch]);
 
   // ✅ Change branch tab
-  const handleBranchChange = (branch) => {
+  const handleBranchChange = (branch: string) => {
     setSelectedBranch(branch);
     localStorage.setItem("kitchenBranch", branch);
     fetchOrders(branch);
@@ -204,7 +221,7 @@ function Kitchen() {
   if (!loggedIn) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-900 p-6">
-        <div className="bg-white p-8 rounded-xl shadow-2xl w-full max-w-md">
+        <div className="bg-white p-8 rounded-xl shadow-2xl w/full max-w-md">
           <h1 className="text-3xl font-black text-center text-orange-600 mb-6">
             KITCHEN PANEL LOGIN
           </h1>
@@ -243,7 +260,6 @@ function Kitchen() {
               Log In
             </button>
           </div>
-
         </div>
       </div>
     );
@@ -317,149 +333,163 @@ function Kitchen() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-          {orders.map((order) => (
-            <div
-              key={order.id}
-              className="bg-white shadow-2xl rounded-lg p-4 border-4 border-orange-400 transform hover:scale-105 transition-transform"
-            >
-              {/* Header */}
-              <div className="bg-gradient-to-r from-orange-500 to-red-500 text-white rounded-lg p-3 mb-3">
-                <h2 className="text-2xl font-black text-center">
-                  #{order.order_number}
-                </h2>
-                <p className="text-center text-sm font-semibold opacity-90">
-                  {new Date(order.created_at).toLocaleTimeString()}
-                </p>
-                <p className="text-center text-xs opacity-90 mt-1">
-                  🏷 Branch: <span className="font-bold">{order.branch}</span>
-                </p>
-              </div>
+          {orders.map((order) => {
+            const items = normalizeItems(order.items);
 
-              {/* Customer Info */}
-              <div className="bg-blue-50 rounded-lg p-3 mb-3">
-                <p className="text-gray-800 text-sm font-bold mb-1">
-                  👤 {order.customer_name}
-                </p>
-                <p className="text-gray-700 text-xs">📱 {order.customer_phone}</p>
-                <div className="flex gap-2 mt-2">
+            return (
+              <div
+                key={order.id}
+                className="bg-white shadow-2xl rounded-lg p-4 border-4 border-orange-400 transform hover:scale-105 transition-transform"
+              >
+                {/* Header */}
+                <div className="bg-gradient-to-r from-orange-500 to-red-500 text-white rounded-lg p-3 mb-3">
+                  <h2 className="text-2xl font-black text-center">#{order.order_number}</h2>
+                  <p className="text-center text-sm font-semibold opacity-90">
+                    {new Date(order.created_at).toLocaleTimeString()}
+                  </p>
+                  <p className="text-center text-xs opacity-90 mt-1">
+                    🏷 Branch: <span className="font-bold">{order.branch}</span>
+                  </p>
+                </div>
+
+                {/* Customer Info */}
+                <div className="bg-blue-50 rounded-lg p-3 mb-3">
+                  <p className="text-gray-800 text-sm font-bold mb-1">👤 {order.customer_name}</p>
+                  <p className="text-gray-700 text-xs">📱 {order.customer_phone}</p>
+                  <div className="flex gap-2 mt-2">
+                    <span
+                      className={`px-2 py-1 rounded text-xs font-bold ${
+                        order.order_type === "delivery"
+                          ? "bg-purple-500 text-white"
+                          : "bg-green-500 text-white"
+                      }`}
+                    >
+                      {order.order_type === "delivery" ? "🚗 DELIVERY" : "🏃 PICKUP"}
+                    </span>
+                    <span className="px-2 py-1 rounded text-xs font-bold bg-gray-200 text-gray-800">
+                      💳 {formatPayment(order.payment_method)}
+                    </span>
+                  </div>
+                </div>
+
+                {/* ✅ NEW: Order Details (explicitly includes Branch) */}
+                <div className="bg-gray-50 rounded-lg p-3 mb-3 border border-gray-200">
+                  <h3 className="font-black text-sm mb-2 text-gray-800">🧾 ORDER DETAILS</h3>
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-gray-700">
+                    <div><span className="font-semibold">Order #:</span> {order.order_number}</div>
+                    <div><span className="font-semibold">Created:</span> {new Date(order.created_at).toLocaleString()}</div>
+                    <div><span className="font-semibold">Branch:</span> {order.branch || "—"}</div>
+                    <div><span className="font-semibold">Type:</span> {order.order_type}</div>
+                    <div><span className="font-semibold">Payment:</span> {formatPayment(order.payment_method)}</div>
+                    <div><span className="font-semibold">Cashier:</span> {order.cashier_name || "—"}</div>
+                  </div>
+                </div>
+
+                {/* Items */}
+                <div className="bg-yellow-50 rounded-lg p-3 mb-3 border-2 border-yellow-200">
+                  <h3 className="font-black text-sm mb-2 text-gray-800">📋 ORDER ITEMS:</h3>
+                  <ul className="space-y-2">
+                    {items.map((item: any, i: number) => {
+                      const addons = item.addons || item.add_ons || [];
+                      return (
+                        <li key={i} className="border-b border-yellow-200 pb-2 last:border-b-0">
+                          <div className="flex justify-between items-start">
+                            <span className="font-bold text-sm text-gray-800">{item.name}</span>
+                            <span className="bg-orange-500 text-white px-2 py-1 rounded-full text-xs font-black">
+                              x{item.quantity}
+                            </span>
+                          </div>
+
+                          {Array.isArray(item.sauces) && item.sauces.length > 0 && (
+                            <div className="mt-1">
+                              <p className="text-xs font-bold text-gray-600">🥫 Sauces:</p>
+                              <ul className="ml-4 list-disc text-xs text-gray-700">
+                                {item.sauces.map((s: string, idx: number) => (
+                                  <li key={idx}>{s}</li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+
+                          {Array.isArray(addons) && addons.length > 0 && (
+                            <div className="mt-1">
+                              <p className="text-xs font-bold text-gray-600">➕ Add-ons:</p>
+                              <ul className="ml-4 list-disc text-xs text-gray-700">
+                                {addons.map((a: string, idx: number) => (
+                                  <li key={idx}>{a}</li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+
+                          {item.withSeasoning && (
+                            <div className="mt-1 bg-green-500 text-white text-xs px-2 py-1 rounded inline-block">
+                              ✨ WITH SEASONING
+                            </div>
+                          )}
+
+                          {item.remarks?.trim() && (
+                            <div className="mt-2 bg-red-100 border-2 border-red-400 text-red-900 text-xs rounded px-2 py-2 font-bold">
+                              ⚠️ SPECIAL REQUEST: {item.remarks}
+                            </div>
+                          )}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+
+                {/* Total */}
+                <div className="bg-gray-800 text-white rounded-lg p-3 mb-3 text-center">
+                  <p className="text-xs font-semibold opacity-80">TOTAL</p>
+                  <p className="text-2xl font-black">{formatPKR(order.grand_total)}</p>
+                </div>
+
+                {/* Status */}
+                <div className="mb-3 text-center">
                   <span
-                    className={`px-2 py-1 rounded text-xs font-bold ${
-                      order.order_type === "delivery"
-                        ? "bg-purple-500 text-white"
-                        : "bg-green-500 text-white"
+                    className={`px-4 py-2 rounded-lg text-white text-sm font-black inline-block ${
+                      order.status === "Pending"
+                        ? "bg-yellow-500 animate-pulse"
+                        : order.status === "Confirmed"
+                        ? "bg-green-500"
+                        : order.status === "Cancelled"
+                        ? "bg-red-500"
+                        : "bg-gray-500"
                     }`}
                   >
-                    {order.order_type === "delivery" ? "🚗 DELIVERY" : "🏃 PICKUP"}
-                  </span>
-                  <span className="px-2 py-1 rounded text-xs font-bold bg-gray-200 text-gray-800">
-                    💳 {formatPayment(order.payment_method)}
+                    {order.status === "Pending" && "⏳ NEW ORDER"}
+                    {order.status === "Confirmed" && "👨‍🍳 PUNCHING"}
+                    {order.status === "Cancelled" && "❌ CANCELLED"}
+                    {!["Pending", "Confirmed", "Cancelled"].includes(order.status) && order.status}
                   </span>
                 </div>
+
+                {/* Actions */}
+                <div className="grid grid-cols-3 gap-2">
+                  <button
+                    onClick={() => updateOrderStatus(order.id, "Confirmed")}
+                    disabled={order.status === "Confirmed"}
+                    className="bg-green-500 hover:bg-green-600 text-white px-2 py-3 rounded-lg font-bold text-xs disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+                  >
+                    ✅ CONFIRM
+                  </button>
+                  <button
+                    onClick={() => updateOrderStatus(order.id, "Completed")}
+                    className="bg-blue-500 hover:bg-blue-600 text-white px-2 py-3 rounded-lg font-bold text-xs transition-colors"
+                  >
+                    🏁 COMPLETED
+                  </button>
+                  <button
+                    onClick={() => updateOrderStatus(order.id, "Cancelled")}
+                    className="bg-red-500 hover:bg-red-600 text-white px-2 py-3 rounded-lg font-bold text-xs transition-colors"
+                  >
+                    ❌ CANCEL
+                  </button>
+                </div>
               </div>
-
-              {/* Items */}
-              <div className="bg-yellow-50 rounded-lg p-3 mb-3 border-2 border-yellow-200">
-                <h3 className="font-black text-sm mb-2 text-gray-800">📋 ORDER ITEMS:</h3>
-                <ul className="space-y-2">
-                  {order.items.map((item, i) => {
-                    const addons = item.addons || item.add_ons || [];
-                    return (
-                      <li key={i} className="border-b border-yellow-200 pb-2 last:border-b-0">
-                        <div className="flex justify-between items-start">
-                          <span className="font-bold text-sm text-gray-800">{item.name}</span>
-                          <span className="bg-orange-500 text-white px-2 py-1 rounded-full text-xs font-black">
-                            x{item.quantity}
-                          </span>
-                        </div>
-
-                        {Array.isArray(item.sauces) && item.sauces.length > 0 && (
-                          <div className="mt-1">
-                            <p className="text-xs font-bold text-gray-600">🥫 Sauces:</p>
-                            <ul className="ml-4 list-disc text-xs text-gray-700">
-                              {item.sauces.map((s, idx) => (
-                                <li key={idx}>{s}</li>
-                              ))}
-                            </ul>
-                          </div>
-                        )}
-
-                        {Array.isArray(addons) && addons.length > 0 && (
-                          <div className="mt-1">
-                            <p className="text-xs font-bold text-gray-600">➕ Add-ons:</p>
-                            <ul className="ml-4 list-disc text-xs text-gray-700">
-                              {addons.map((a, idx) => (
-                                <li key={idx}>{a}</li>
-                              ))}
-                            </ul>
-                          </div>
-                        )}
-
-                        {item.withSeasoning && (
-                          <div className="mt-1 bg-green-500 text-white text-xs px-2 py-1 rounded inline-block">
-                            ✨ WITH SEASONING
-                          </div>
-                        )}
-
-                        {item.remarks?.trim() && (
-                          <div className="mt-2 bg-red-100 border-2 border-red-400 text-red-900 text-xs rounded px-2 py-2 font-bold">
-                            ⚠️ SPECIAL REQUEST: {item.remarks}
-                          </div>
-                        )}
-                      </li>
-                    );
-                  })}
-                </ul>
-              </div>
-
-              {/* Total */}
-              <div className="bg-gray-800 text-white rounded-lg p-3 mb-3 text-center">
-                <p className="text-xs font-semibold opacity-80">TOTAL</p>
-                <p className="text-2xl font-black">PKR {order.grand_total}</p>
-              </div>
-
-              {/* Status */}
-              <div className="mb-3 text-center">
-                <span
-                  className={`px-4 py-2 rounded-lg text-white text-sm font-black inline-block ${
-                    order.status === "Pending"
-                      ? "bg-yellow-500 animate-pulse"
-                      : order.status === "Confirmed"
-                      ? "bg-green-500"
-                      : order.status === "Cancelled"
-                      ? "bg-red-500"
-                      : "bg-gray-500"
-                  }`}
-                >
-                  {order.status === "Pending" && "⏳ NEW ORDER"}
-                  {order.status === "Confirmed" && "👨‍🍳 PUNCHING"}
-                  {order.status === "Cancelled" && "❌ CANCELLED"}
-                </span>
-              </div>
-
-              {/* Actions */}
-              <div className="grid grid-cols-3 gap-2">
-                <button
-                  onClick={() => updateOrderStatus(order.id, "Confirmed")}
-                  disabled={order.status === "Confirmed"}
-                  className="bg-green-500 hover:bg-green-600 text-white px-2 py-3 rounded-lg font-bold text-xs disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
-                >
-                  ✅ CONFIRM
-                </button>
-                <button
-                  onClick={() => updateOrderStatus(order.id, "Completed")}
-                  className="bg-blue-500 hover:bg-blue-600 text-white px-2 py-3 rounded-lg font-bold text-xs transition-colors"
-                >
-                  🏁 COMPLETED
-                </button>
-                <button
-                  onClick={() => updateOrderStatus(order.id, "Cancelled")}
-                  className="bg-red-500 hover:bg-red-600 text-white px-2 py-3 rounded-lg font-bold text-xs transition-colors"
-                >
-                  ❌ CANCEL
-                </button>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
