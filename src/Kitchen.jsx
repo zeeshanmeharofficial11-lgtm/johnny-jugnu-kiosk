@@ -27,7 +27,6 @@ function formatPayment(pm) {
 // 🕒 Pakistan time helpers
 const PK_TZ = "Asia/Karachi";
 function formatPKTime(d) {
-  // Handles string/Date; always renders in PK time (12-hour)
   return new Date(d).toLocaleTimeString("en-PK", {
     timeZone: PK_TZ,
     hour: "2-digit",
@@ -251,7 +250,6 @@ function Kitchen() {
         <div className="text-white text-center sm:text-left">
           <h1 className="text-2xl sm:text-4xl font-black mb-1">🍔 KITCHEN DISPLAY</h1>
           <p className="text-xs sm:text-sm opacity-80">
-            {/* ⏱ Show PK time for last refresh */}
             Last updated: {formatPKDateTime(lastUpdate)}
           </p>
         </div>
@@ -309,10 +307,9 @@ function Kitchen() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
           {orders.map((order) => {
-            // 🧾 Ensure items is an array, whether stored as JSON text or JSONB
             const items = safeParseJSON(order.items);
-            // 📍 Address (supports either `address` or `customer_address`)
             const address = order.address || order.customer_address || "—";
+            const instructions = (order.customer_instructions || "").trim();
 
             return (
               <div
@@ -323,7 +320,6 @@ function Kitchen() {
                 <div className="bg-gradient-to-r from-orange-500 to-red-500 text-white rounded-lg p-3 mb-3">
                   <h2 className="text-2xl font-black text-center">#{order.order_number}</h2>
                   <p className="text-center text-sm font-semibold opacity-90">
-                    {/* 🕒 Created-at in Pakistan time */}
                     {formatPKTime(order.created_at)}
                   </p>
                   <p className="text-center text-xs opacity-90 mt-1">
@@ -336,6 +332,17 @@ function Kitchen() {
                   <p className="text-gray-800 text-sm font-bold mb-1">👤 {order.customer_name}</p>
                   <p className="text-gray-700 text-xs">📱 {order.customer_phone}</p>
                   <p className="text-gray-700 text-xs mt-1 break-words">📍 {address}</p>
+
+                  {/* 📝 Customer Instructions */}
+                  {instructions && (
+                    <div className="mt-2 bg-white border border-blue-200 rounded p-2">
+                      <p className="text-xs font-bold text-gray-700">📝 Instructions:</p>
+                      <p className="text-xs text-gray-800 whitespace-pre-line break-words">
+                        {instructions}
+                      </p>
+                    </div>
+                  )}
+
                   <div className="flex gap-2 mt-2">
                     <span
                       className={`px-2 py-1 rounded text-xs font-bold ${
