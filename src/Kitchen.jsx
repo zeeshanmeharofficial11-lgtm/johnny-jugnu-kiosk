@@ -49,7 +49,7 @@ function Kitchen() {
     localStorage.getItem("kitchenBranch") || BRANCHES[0]
   );
 
-  const HARD_CODED_USER = { id: "kitchen", password: "6969" };
+  const HARD_CODED_USER = { id: "kitchen", password: "6767" };
 
   // ✅ Handle login
   const handleLogin = () => {
@@ -243,9 +243,7 @@ function Kitchen() {
               Log In
             </button>
           </div>
-          <p className="text-xs text-gray-500 text-center mt-4">
-            Demo credentials: <strong>kitchen / 6969</strong>
-          </p>
+
         </div>
       </div>
     );
