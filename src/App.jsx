@@ -36,9 +36,9 @@ function App() {
 
   // ---- Hardcoded credentials (for kiosk/dev only) ----
   const HARD_CODED_USERS = {
-    spider: '123',
-    lupin: '123',
-    wehshi: '123'
+    spider: '6767',
+    lupin: '6767',
+    wehshi: '6767'
   };
   // ----------------------------------------------------
 
