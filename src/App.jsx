@@ -28,6 +28,12 @@ function App() {
   const BRANCHES = ["Phase 6", "Phase 4", "Johar Town", "Bahria Town", "Cloud Kitchen", "Emporium"];
   const [branch, setBranch] = useState(''); // kept across new orders for the logged-in cashier
 
+  // NEW: Preset delivery locations (dropdown options)
+  const ADDRESS_OPTIONS = [
+    { value: 'Nishtar Sports Complex (Takedown 2025)', label: 'Nishtar Sports Complex (Takedown 2025)' },
+    { value: 'Kaizen School (Near Hafeez Center)', label: 'Kaizen School (Near Hafeez Center)' },
+  ];
+
   // Customization modal state
   const [showCustomizationModal, setShowCustomizationModal] = useState(false);
   const [currentItem, setCurrentItem] = useState(null);
@@ -793,14 +799,18 @@ function App() {
 
           {orderType === 'delivery' && (
             <div className="mt-4">
-              <label className="block text-sm font-medium mb-2">Delivery Address *</label>
-              <textarea
+              <label className="block text-sm font-medium mb-2">Delivery Location *</label>
+              <select
                 value={customerInfo.address}
-                onChange={(e) => setCustomerInfo({...customerInfo, address: e.target.value})}
+                onChange={(e) => setCustomerInfo({ ...customerInfo, address: e.target.value })}
                 className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                rows="3"
                 required
-              />
+              >
+                <option value="" disabled>Select location</option>
+                {ADDRESS_OPTIONS.map(opt => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
             </div>
           )}
 
