@@ -73,7 +73,7 @@ function Kitchen() {
   // 🏷 Current branch tab (persisted)
   const [selectedBranch, setSelectedBranch] = useState(localStorage.getItem("kitchenBranch") || BRANCHES[0]);
 
-  const HARD_CODED_USER = { id: "kitchen", password: "6767" };
+  const HARD_CODED_USER = { id: "kitchen", password: "9696" };
 
   // ✅ Handle login
   const handleLogin = () => {

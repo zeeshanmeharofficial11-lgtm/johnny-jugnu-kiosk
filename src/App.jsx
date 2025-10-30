@@ -30,8 +30,8 @@ function App() {
 
   // NEW: Preset delivery locations (dropdown options)
   const ADDRESS_OPTIONS = [
-    { value: 'Kinnaird College For Women University', label: 'Kinnaird College For Women University' },
-    { value: 'City School - DHA P6 Campus to JJ Ph6 Branch', label: 'City School - DHA P6 Campus to JJ Ph6 Branch' },
+    { value: 'Kinnaird College For Women University (CK Delivery Kiosk)', label: 'Kinnaird College For Women University (CK Delivery Kiosk)' },
+    { value: 'City School - DHA P6 Campus to JJ Ph6 Branch (Delivery Kiosk)', label: 'City School - DHA P6 Campus to JJ Ph6 Branch (Delivery Kiosk)' },
   ];
 
   // Customization modal state
@@ -42,9 +42,9 @@ function App() {
 
   // ---- Hardcoded credentials (for kiosk/dev only) ----
   const HARD_CODED_USERS = {
-    spider: '6767',
-    lupin: '6767',
-    wehshi: '6767'
+    spider: '9696',
+    lupin: '9696',
+    wehshi: '9696'
   };
   // ----------------------------------------------------
 
