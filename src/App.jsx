@@ -30,8 +30,8 @@ function App() {
 
   // NEW: Preset delivery locations (dropdown options)
   const ADDRESS_OPTIONS = [
-    { value: 'Nishtar Sports Complex (Takedown 2025)', label: 'Nishtar Sports Complex (Takedown 2025)' },
-    { value: 'Kaizen School (Near Hafeez Center)', label: 'Kaizen School (Near Hafeez Center)' },
+    { value: 'Kinnaird College For Women University', label: 'Kinnaird College For Women University' },
+    { value: 'City School - DHA P6 Campus to JJ Ph6 Branch', label: 'City School - DHA P6 Campus to JJ Ph6 Branch' },
   ];
 
   // Customization modal state
