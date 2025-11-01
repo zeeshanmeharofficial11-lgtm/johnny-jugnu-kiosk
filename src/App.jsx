@@ -32,6 +32,8 @@ function App() {
   const ADDRESS_OPTIONS = [
     { value: 'Kinnaird College For Women University (CK Delivery Kiosk)', label: 'Kinnaird College For Women University (CK Delivery Kiosk)' },
     { value: 'City School - DHA P6 Campus to JJ Ph6 Branch (Delivery Kiosk)', label: 'City School - DHA P6 Campus to JJ Ph6 Branch (Delivery Kiosk)' },
+    { value: 'JT to RAAZ FOOD FEST (Global Village) Delivery Kiosk', label: 'JT to RAAZ FOOD FEST (Global Village) Delivery Kiosk' },
+
   ];
 
   // Customization modal state
