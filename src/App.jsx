@@ -31,10 +31,8 @@ function App() {
   // NEW: Preset delivery locations (dropdown options)
   const ADDRESS_OPTIONS = [
     { value: 'Kinnaird College For Women University (CK Delivery Kiosk)', label: 'Kinnaird College For Women University (CK Delivery Kiosk)' },
-    { value: 'City School - DHA P6 Campus to JJ Ph6 Branch (Delivery Kiosk)', label: 'City School - DHA P6 Campus to JJ Ph6 Branch (Delivery Kiosk)' },
-    { value: 'JT to RAAZ FOOD FEST (Global Village) Delivery Kiosk', label: 'JT to RAAZ FOOD FEST (Global Village) Delivery Kiosk' },
-    { value: 'Cloud KIOSK OPERATIONS - MAANU CONCERT Al-Hamra Cultural Complex, Qaddafi Stadium', label: 'Cloud KIOSK OPERATIONS - MAANU CONCERT Al-Hamra Cultural Complex, Qaddafi Stadium' },
-
+    { value: 'Delivery Kiosk Phase 6 Branch to LGS Paragon, Paragon City, Burki Road', label: 'City School - DHA P6 Campus to JJ Ph6 Branch (Delivery Kiosk)' },
+    
   ];
 
   // Customization modal state
