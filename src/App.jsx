@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { ShoppingCart, Plus, Minus, Trash2, Clock, MapPin, User, X } from 'lucide-react';
-import html2canvas from "html2canvas";
-import './App.css';
+//import React, { useState, useEffect } from 'react';
+//import { ShoppingCart, Plus, Minus, Trash2, Clock, MapPin, User, X } from 'lucide-react';
+//import html2canvas from "html2canvas";
+//import './App.css';
 
 function App() {
   const [cart, setCart] = useState([]);
