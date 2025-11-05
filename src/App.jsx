@@ -4,6 +4,7 @@ import html2canvas from "html2canvas";
 import './App.css';
 
 function App() {
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [cart, setCart] = useState([]);
   const [activeCategory, setActiveCategory] = useState('mains');
   const [orderType, setOrderType] = useState('delivery');
@@ -374,45 +375,50 @@ function App() {
   };
 
   const submitOrder = async () => {
-    const newOrderNumber = Math.floor(Math.random() * 10000);
-    setOrderNumber(newOrderNumber);
-    
-    const orderData = {
-      orderNumber: newOrderNumber,
-      timestamp: new Date().toISOString(),
-      cashier: { name: cashierInfo.name, id: cashierInfo.id },
-      customer: customerInfo,
-      orderType,
-      paymentMethod,
-      branch, // NEW
-      items: cart.map(item => ({
-        name: item.name,
-        quantity: item.quantity,
-        unitPrice: item.finalPrice,
-        totalPrice: item.finalPrice * item.quantity,
-        withSeasoning: item.withSeasoning ? true : false,
-        category: item.category,
-        sauces: item.sauces ? item.sauces.map(s => s.name) : [], // duplicates preserved
-        addons: item.addons ? item.addons.map(a => a.name) : [],
-        remarks: item.remarks || ''
-      })),
-      itemsTotal: cart.reduce((total, item) => total + (item.finalPrice * item.quantity), 0),
-      deliveryCharge: deliveryCharges,
-      grandTotal: getTotalPrice(),
-      status: 'Pending',
-      estimatedTime: '15-20 minutes'
-    };
-    
-    console.log('Order submitted:', orderData);
-    
-    const supabaseSuccess = await submitToSupabase(orderData);
-    if (!supabaseSuccess) {
-      alert('Warning: Order not saved to database. Please check your internet connection or contact support.');
-    }
-    
-    saveSession('receipt'); // persist after order submit
-    gotoStep('receipt');
+  setIsSubmitting(true); // show loading
+
+  const newOrderNumber = Math.floor(Math.random() * 10000);
+  setOrderNumber(newOrderNumber);
+
+  const orderData = {
+    orderNumber: newOrderNumber,
+    timestamp: new Date().toISOString(),
+    cashier: { name: cashierInfo.name, id: cashierInfo.id },
+    customer: customerInfo,
+    orderType,
+    paymentMethod,
+    branch,
+    items: cart.map(item => ({
+      name: item.name,
+      quantity: item.quantity,
+      unitPrice: item.finalPrice,
+      totalPrice: item.finalPrice * item.quantity,
+      withSeasoning: !!item.withSeasoning,
+      category: item.category,
+      sauces: item.sauces ? item.sauces.map(s => s.name) : [],
+      addons: item.addons ? item.addons.map(a => a.name) : [],
+      remarks: item.remarks || ''
+    })),
+    itemsTotal: cart.reduce((t, i) => t + (i.finalPrice * i.quantity), 0),
+    deliveryCharge: deliveryCharges,
+    grandTotal: getTotalPrice(),
+    status: 'Pending',
+    estimatedTime: '15-20 minutes'
   };
+
+  console.log('Order submitted:', orderData);
+
+  const supabaseSuccess = await submitToSupabase(orderData);
+  setIsSubmitting(false); // hide loading when done
+
+  if (!supabaseSuccess) {
+    alert('Warning: Order not saved to database. Please check your internet connection or contact support.');
+  }
+
+  saveSession('receipt');
+  gotoStep('receipt');
+};
+
 
   const printOrder = () => {
     window.print();
@@ -1180,12 +1186,44 @@ function App() {
             >
               Back to Menu
             </button>
-            <button
+                        <button
               onClick={submitOrder}
-              className="flex-1 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600"
+              disabled={isSubmitting}
+              className={`flex-1 py-3 rounded-lg font-semibold text-white transition-colors ${
+                isSubmitting
+                  ? 'bg-gray-400 cursor-not-allowed'
+                  : 'bg-green-500 hover:bg-green-600'
+              }`}
             >
-              Confirm Order & Save to System
+              {isSubmitting ? (
+                <div className="flex items-center justify-center gap-2">
+                  <svg
+                    className="animate-spin h-5 w-5 text-white"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    ></circle>
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 018 8h-4l3 3 3-3h-4a8 8 0 01-8 8v-4l-3 3 3 3v-4a8 8 0 01-8-8z"
+                    ></path>
+                  </svg>
+                  Saving...
+                </div>
+              ) : (
+                'Confirm Order & Save to System'
+              )}
             </button>
+
           </div>
         </div>
       </div>
