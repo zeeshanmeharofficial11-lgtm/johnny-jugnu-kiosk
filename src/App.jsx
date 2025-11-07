@@ -32,7 +32,7 @@ function App() {
   // NEW: Preset delivery locations (dropdown options)
   const ADDRESS_OPTIONS = [
     { value: 'Kinnaird College For Women University (CK Delivery Kiosk)', label: 'Kinnaird College For Women University (CK Delivery Kiosk)' },
-    { value: 'Delivery Kiosk Phase 6 Branch to LGS Paragon, Paragon City, Burki Road', label: 'City School - DHA P6 Campus to JJ Ph6 Branch (Delivery Kiosk)' },
+    { value: 'Delivery Kiosk Phase 6 Branch to LGS Paragon, Paragon City, Burki Road', label: 'Delivery Kiosk Phase 6 Branch to LGS Paragon, Paragon City, Burki Road' },
     
   ];
 
