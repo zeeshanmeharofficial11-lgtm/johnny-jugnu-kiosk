@@ -31,9 +31,7 @@ function App() {
 
   // NEW: Preset delivery locations (dropdown options)
   const ADDRESS_OPTIONS = [
-    { value: 'Kinnaird College For Women University (CK Delivery Kiosk)', label: 'Kinnaird College For Women University (CK Delivery Kiosk)' },
-    { value: 'Delivery Kiosk Phase 6 Branch to LGS Paragon, Paragon City, Burki Road', label: 'Delivery Kiosk Phase 6 Branch to LGS Paragon, Paragon City, Burki Road' },
-    
+    { value: 'Delivery Kiosk CK to Lahore Grammar School 103 Muslim Town Allama Iqbal Town. Lahore', label: 'Delivery Kiosk CK to Lahore Grammar School 103 Muslim Town Allama Iqbal Town. Lahore' },    
   ];
 
   // Customization modal state
