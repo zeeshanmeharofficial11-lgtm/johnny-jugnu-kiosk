@@ -31,7 +31,7 @@ function App() {
 
   // NEW: Preset delivery locations (dropdown options)
   const ADDRESS_OPTIONS = [
-    { value: 'Delivery Kiosk CK to Lahore Grammar School 103 Muslim Town Allama Iqbal Town. Lahore', label: 'Delivery Kiosk CK to Lahore Grammar School 103 Muslim Town Allama Iqbal Town. Lahore' },    
+    { value: 'JJ Kiosk Bahria to COMSATS University Reset’25', label: 'JJ Kiosk Bahria to COMSATS University Reset’25' },    
   ];
 
   // Customization modal state
