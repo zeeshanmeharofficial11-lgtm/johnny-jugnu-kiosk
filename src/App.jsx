@@ -31,9 +31,8 @@ function App() {
 
   // NEW: Preset delivery locations (dropdown options)
   const ADDRESS_OPTIONS = [
-    { value: 'JJ Kiosk Bahria to COMSATS University Reset’25', label: 'JJ Kiosk Bahria to COMSATS University Reset’25' },  
-    { value: 'JJ DHA Phase 6 Kiosk to SICAS', label: 'JJ DHA Phase 6 Kiosk to SICAS' },      
-  ];
+    { value: 'JJ KIOSK CC to 2nd INTERNATIONAL BOXING CHAMPIONSHIP  ', label: 'JJ KIOSK CC to 2nd INTERNATIONAL BOXING CHAMPIONSHIP' },  
+    ];
 
   // Customization modal state
   const [showCustomizationModal, setShowCustomizationModal] = useState(false);
