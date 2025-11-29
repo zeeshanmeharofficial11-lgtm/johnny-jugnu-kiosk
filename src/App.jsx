@@ -31,8 +31,6 @@ function App() {
 
   // NEW: Preset delivery locations (dropdown options)
   const ADDRESS_OPTIONS = [
-    { value: 'JJ KIOSK CC to 2nd INTERNATIONAL BOXING CHAMPIONSHIP  ', label: 'JJ KIOSK CC to 2nd INTERNATIONAL BOXING CHAMPIONSHIP' }, 
-{ value: 'JJJ JT Kiosk to Beaconhouse Girl Campus JT  ', label: 'JJ JT Kiosk to Beaconhouse Girl Campus JT' },
  { value: 'P6 Branch to International technology University Barki Road (Delivery Kiosk)', label: 'P6 Branch to International technology University Barki Road (Delivery Kiosk)' },
     ];
 
