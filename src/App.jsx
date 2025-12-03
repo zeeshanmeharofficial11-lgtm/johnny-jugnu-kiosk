@@ -30,11 +30,21 @@ function App() {
   const [branch, setBranch] = useState(''); // kept across new orders for the logged-in cashier
 
   // NEW: Preset delivery locations (dropdown options)
-  const ADDRESS_OPTIONS = [
- { value: 'P6 Branch to Lahore Garrison University (LGU) (Delivery Kiosk)', label: 'P6 Branch to Lahore Garrison University (LGU) (Delivery Kiosk)' },
- value: 'Cloud Kitchen to Alhamra Cultural Complex, Lahore  Goonj 2.0 Cultural Festival  (Delivery Kiosk)', label: 'Cloud Kitchen to Alhamra Cultural Complex, Lahore  Goonj 2.0 Cultural Festival  (Delivery Kiosk)' },
- value: 'EXE Not Working', label: 'EXE Not Working' },
-    ];
+const ADDRESS_OPTIONS = [
+  { 
+    value: 'P6 Branch to Lahore Garrison University (LGU) (Delivery Kiosk)', 
+    label: 'P6 Branch to Lahore Garrison University (LGU) (Delivery Kiosk)' 
+  },
+  { 
+    value: 'Cloud Kitchen to Alhamra Cultural Complex, Lahore  Goonj 2.0 Cultural Festival  (Delivery Kiosk)', 
+    label: 'Cloud Kitchen to Alhamra Cultural Complex, Lahore  Goonj 2.0 Cultural Festival  (Delivery Kiosk)' 
+  },
+  { 
+    value: 'EXE Not Working', 
+    label: 'EXE Not Working' 
+  },
+];
+
 
   // Customization modal state
   const [showCustomizationModal, setShowCustomizationModal] = useState(false);
