@@ -803,21 +803,19 @@ function App() {
           </div>
 
           {orderType === 'delivery' && (
-            <div className="mt-4">
-              <label className="block text-sm font-medium mb-2">Delivery Location *</label>
-              <select
-                value={customerInfo.address}
-                onChange={(e) => setCustomerInfo({ ...customerInfo, address: e.target.value })}
-                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                required
-              >
-                <option value="" disabled>Select location</option>
-                {ADDRESS_OPTIONS.map(opt => (
-                  <option key={opt.value} value={opt.value}>{opt.label}</option>
-                ))}
-              </select>
-            </div>
-          )}
+  <div className="mt-4">
+    <label className="block text-sm font-medium mb-2">Delivery Address *</label>
+    <input
+      type="text"
+      value={customerInfo.address}
+      onChange={(e) => setCustomerInfo({ ...customerInfo, address: e.target.value })}
+      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+      placeholder="Enter full delivery address"
+      required
+    />
+  </div>
+)}
+
 
           <div className="mt-4">
             <label className="block text-sm font-medium mb-2">Special Instructions</label>
