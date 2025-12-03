@@ -431,7 +431,7 @@ function Kitchen() {
                     }`}
                   >
                     {order.status === "Pending" && "⏳ NEW ORDER"}
-                    {order.status === "Confirmed" && "👨‍🍳 PUNCHING"}
+                    {order.status === "Confirmed" && "👨‍🍳 PUNCHING/ASSEMBLY"}
                     {order.status === "Cancelled" && "❌ CANCELLED"}
                   </span>
                 </div>
