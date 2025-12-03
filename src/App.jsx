@@ -834,7 +834,7 @@ const ADDRESS_OPTIONS = [
 
 
           <div className="mt-4">
-            <label className="block text-sm font-medium mb-2">Special Instructions</label>
+            <label className="block text-sm font-medium mb-2">Instructions/Manual Address (If EXE Not Working)</label>
             <textarea
               value={customerInfo.instructions}
               onChange={(e) => setCustomerInfo({...customerInfo, instructions: e.target.value})}
