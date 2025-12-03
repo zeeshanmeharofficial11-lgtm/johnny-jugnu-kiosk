@@ -31,7 +31,9 @@ function App() {
 
   // NEW: Preset delivery locations (dropdown options)
   const ADDRESS_OPTIONS = [
- { value: 'P6 Branch to International technology University Barki Road (Delivery Kiosk)', label: 'P6 Branch to International technology University Barki Road (Delivery Kiosk)' },
+ { value: 'P6 Branch to Lahore Garrison University (LGU) (Delivery Kiosk)', label: 'P6 Branch to Lahore Garrison University (LGU) (Delivery Kiosk)' },
+ value: 'Cloud Kitchen to Alhamra Cultural Complex, Lahore  Goonj 2.0 Cultural Festival  (Delivery Kiosk)', label: 'Cloud Kitchen to Alhamra Cultural Complex, Lahore  Goonj 2.0 Cultural Festival  (Delivery Kiosk)' },
+ value: 'EXE Not Working', label: 'EXE Not Working' },
     ];
 
   // Customization modal state
@@ -804,17 +806,21 @@ function App() {
 
           {orderType === 'delivery' && (
   <div className="mt-4">
-    <label className="block text-sm font-medium mb-2">Delivery Address *</label>
-    <input
-      type="text"
+    <label className="block text-sm font-medium mb-2">Delivery Location *</label>
+    <select
       value={customerInfo.address}
       onChange={(e) => setCustomerInfo({ ...customerInfo, address: e.target.value })}
       className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-      placeholder="Enter full delivery address"
       required
-    />
+    >
+      <option value="" disabled>Select location</option>
+      {ADDRESS_OPTIONS.map(opt => (
+        <option key={opt.value} value={opt.value}>{opt.label}</option>
+      ))}
+    </select>
   </div>
 )}
+
 
 
           <div className="mt-4">
