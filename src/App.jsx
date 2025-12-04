@@ -753,13 +753,25 @@ function App() {
     setShowCustomizationModal(true);
   };
 
-  const addSauce = (sauce) => {
+  const toggleSauce = (sauce) => {
+  // Is this sauce already selected?
+  const index = selectedSauces.findIndex((s) => s.id === sauce.id);
+
+  if (index !== -1) {
+    // Deselect: remove this sauce from the list
+    const next = [...selectedSauces];
+    next.splice(index, 1);
+    setSelectedSauces(next);
+  } else {
+    // Not selected yet → only add if we're below the limit
     if (selectedSauces.length >= 2) {
       alert("You can only select 2 sauces total");
       return;
     }
     setSelectedSauces([...selectedSauces, sauce]);
-  };
+  }
+};
+
 
   const removeSauceAt = (idx) => {
     const next = [...selectedSauces];
@@ -1019,28 +1031,31 @@ function App() {
 
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 {availableSauces.map((sauce) => {
-                  const count = sauceCount(sauce.id);
-                  const atLimit = selectedSauces.length >= 2;
-                  return (
-                    <button
-                      key={sauce.id}
-                      onClick={() => addSauce(sauce)}
-                      disabled={atLimit}
-                      className={`relative p-3 rounded-lg border-2 transition-all ${
-                        count > 0 ? 'border-orange-500 bg-orange-50 shadow-md' : 'border-gray-300 hover:border-orange-300'
-                      } ${atLimit ? 'opacity-60 cursor-not-allowed' : ''}`}
-                      title={atLimit ? 'Maximum 2 sauces selected' : 'Add sauce'}
-                    >
-                      <div className="text-3xl mb-1">{sauce.image}</div>
-                      <div className="text-sm font-semibold">{sauce.name}</div>
-                      {count > 0 && (
-                        <span className="absolute top-2 right-2 text-xs font-black bg-orange-600 text-white px-2 py-0.5 rounded-full">
-                          x{count}
-                        </span>
-                      )}
-                    </button>
-                  );
-                })}
+  const count = sauceCount(sauce.id);
+  const isSelected = count > 0;
+
+  return (
+    <button
+      key={sauce.id}
+      onClick={() => toggleSauce(sauce)}
+      className={`relative p-3 rounded-lg border-2 transition-all ${
+        isSelected
+          ? 'border-orange-500 bg-orange-50 shadow-md'
+          : 'border-gray-300 hover:border-orange-300'
+      }`}
+      title={isSelected ? 'Click to remove' : 'Click to add'}
+    >
+      <div className="text-3xl mb-1">{sauce.image}</div>
+      <div className="text-sm font-semibold">{sauce.name}</div>
+      {isSelected && (
+        <span className="absolute top-2 right-2 text-xs font-black bg-orange-600 text-white px-2 py-0.5 rounded-full">
+          x1
+        </span>
+      )}
+    </button>
+  );
+})}
+
               </div>
 
               {selectedSauces.length > 0 && (
@@ -2015,7 +2030,7 @@ function App() {
           )}
 
           <div className="mt-4">
-            <label className="block text-sm font-medium mb-2">Special Instructions</label>
+            <label className="block text-sm font-medium mb-2">Special Instructions/ Delivery Address (EXE Not Working)</label>
             <textarea
               value={customerInfo.instructions}
               onChange={(e) => setCustomerInfo({...customerInfo, instructions: e.target.value})}
