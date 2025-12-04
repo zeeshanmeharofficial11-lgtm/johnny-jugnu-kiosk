@@ -306,9 +306,6 @@ function Kitchen() {
           <h1 className="text-2xl sm:text-4xl font-black mb-1">
             🍔 KITCHEN DISPLAY
           </h1>
-          <p className="text-xs sm:text-sm opacity-80">
-            Last updated: {formatOrderDateTime(lastUpdate)}
-          </p>
         </div>
         <div className="flex items-center gap-2 justify-center sm:justify-end">
           <button
