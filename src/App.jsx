@@ -85,11 +85,16 @@ function App() {
   const [adminConfig, setAdminConfig] = useState(DEFAULT_ADMIN_CONFIG);
   const [branch, setBranch] = useState('');
 
-  // Customization modal state
+  // Customization modal state (for mains)
   const [showCustomizationModal, setShowCustomizationModal] = useState(false);
   const [currentItem, setCurrentItem] = useState(null);
   const [selectedSauces, setSelectedSauces] = useState([]);
   const [selectedAddons, setSelectedAddons] = useState([]);
+
+  // NEW: Dip selection state (for Wings & Nuggs)
+  const [showDipModal, setShowDipModal] = useState(false);
+  const [dipItem, setDipItem] = useState(null);
+  const [selectedDip, setSelectedDip] = useState(null);
 
   // Hardcoded credentials (for kiosk/dev only – used as fallback)
   const HARD_CODED_USERS = {
@@ -538,7 +543,7 @@ function App() {
     }
   };
 
-    const togglePaymentMethod = async (methodId) => {
+  const togglePaymentMethod = async (methodId) => {
     const newConfig = {
       ...adminConfig,
       paymentMethods: adminConfig.paymentMethods.map(pm =>
@@ -588,7 +593,6 @@ function App() {
 
     await updateAdminConfig(newConfig);
   };
-
 
   // ====== NEW: User Management Functions (Admin Panel) ======
   const addUser = async () => {
@@ -754,24 +758,23 @@ function App() {
   };
 
   const toggleSauce = (sauce) => {
-  // Is this sauce already selected?
-  const index = selectedSauces.findIndex((s) => s.id === sauce.id);
+    // Is this sauce already selected?
+    const index = selectedSauces.findIndex((s) => s.id === sauce.id);
 
-  if (index !== -1) {
-    // Deselect: remove this sauce from the list
-    const next = [...selectedSauces];
-    next.splice(index, 1);
-    setSelectedSauces(next);
-  } else {
-    // Not selected yet → only add if we're below the limit
-    if (selectedSauces.length >= 2) {
-      alert("You can only select 2 sauces total");
-      return;
+    if (index !== -1) {
+      // Deselect: remove this sauce from the list
+      const next = [...selectedSauces];
+      next.splice(index, 1);
+      setSelectedSauces(next);
+    } else {
+      // Not selected yet → only add if we're below the limit
+      if (selectedSauces.length >= 2) {
+        alert("You can only select 2 sauces total");
+        return;
+      }
+      setSelectedSauces([...selectedSauces, sauce]);
     }
-    setSelectedSauces([...selectedSauces, sauce]);
-  }
-};
-
+  };
 
   const removeSauceAt = (idx) => {
     const next = [...selectedSauces];
@@ -817,9 +820,18 @@ function App() {
     setSelectedAddons([]);
   };
 
+  // UPDATED: addToCart now handles Wings & Nuggets sauce modal
   const addToCart = (item, customizations = {}) => {
     if (item.category === 'mains') {
       openCustomizationModal(item);
+      return;
+    }
+
+    // NEW: For wings & nuggets, force sauce selection via DipModal
+    if (item.category === 'wings' || item.category === 'nuggets') {
+      setDipItem({ ...item, ...customizations });
+      setSelectedDip(null);
+      setShowDipModal(true);
       return;
     }
 
@@ -1000,7 +1012,7 @@ function App() {
     </div>
   );
 
-  // Customization Modal Component
+  // Customization Modal Component (for mains)
   const CustomizationModal = () => {
     if (!showCustomizationModal || !currentItem) return null;
 
@@ -1031,31 +1043,30 @@ function App() {
 
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 {availableSauces.map((sauce) => {
-  const count = sauceCount(sauce.id);
-  const isSelected = count > 0;
+                  const count = sauceCount(sauce.id);
+                  const isSelected = count > 0;
 
-  return (
-    <button
-      key={sauce.id}
-      onClick={() => toggleSauce(sauce)}
-      className={`relative p-3 rounded-lg border-2 transition-all ${
-        isSelected
-          ? 'border-orange-500 bg-orange-50 shadow-md'
-          : 'border-gray-300 hover:border-orange-300'
-      }`}
-      title={isSelected ? 'Click to remove' : 'Click to add'}
-    >
-      <div className="text-3xl mb-1">{sauce.image}</div>
-      <div className="text-sm font-semibold">{sauce.name}</div>
-      {isSelected && (
-        <span className="absolute top-2 right-2 text-xs font-black bg-orange-600 text-white px-2 py-0.5 rounded-full">
-          x1
-        </span>
-      )}
-    </button>
-  );
-})}
-
+                  return (
+                    <button
+                      key={sauce.id}
+                      onClick={() => toggleSauce(sauce)}
+                      className={`relative p-3 rounded-lg border-2 transition-all ${
+                        isSelected
+                          ? 'border-orange-500 bg-orange-50 shadow-md'
+                          : 'border-gray-300 hover:border-orange-300'
+                      }`}
+                      title={isSelected ? 'Click to remove' : 'Click to add'}
+                    >
+                      <div className="text-3xl mb-1">{sauce.image}</div>
+                      <div className="text-sm font-semibold">{sauce.name}</div>
+                      {isSelected && (
+                        <span className="absolute top-2 right-2 text-xs font-black bg-orange-600 text-white px-2 py-0.5 rounded-full">
+                          x1
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
               </div>
 
               {selectedSauces.length > 0 && (
@@ -1134,6 +1145,93 @@ function App() {
               {selectedSauces.length !== 2 
                 ? `Please select ${2 - selectedSauces.length} more sauce(s)` 
                 : 'Add to Cart'}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // NEW: Dip Modal Component (for Wings & Nuggs)
+  const DipModal = () => {
+    if (!showDipModal || !dipItem) return null;
+
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-lg shadow-2xl max-w-md w-full">
+          <div className="flex justify-between items-center px-4 py-3 border-b">
+            <div>
+              <h2 className="text-lg font-bold">
+                Select Sauce for {dipItem.image} {dipItem.name}
+              </h2>
+              <p className="text-xs text-gray-600">
+                Crispy Wings & Nuggs must have a sauce selected.
+              </p>
+            </div>
+            <button
+              onClick={() => {
+                setShowDipModal(false);
+                setDipItem(null);
+                setSelectedDip(null);
+              }}
+              className="p-1 rounded-full hover:bg-gray-100"
+            >
+              <X size={18} />
+            </button>
+          </div>
+
+          <div className="p-4">
+            <div className="grid grid-cols-2 gap-3 mb-5">
+              {availableSauces.map((sauce) => {
+                const isSelected = selectedDip && selectedDip.id === sauce.id;
+                return (
+                  <button
+                    key={sauce.id}
+                    type="button"
+                    onClick={() => setSelectedDip(sauce)}
+                    className={`p-3 rounded-lg border-2 transition-all ${
+                      isSelected
+                        ? 'border-blue-500 bg-blue-50 shadow'
+                        : 'border-gray-300 hover:border-blue-300'
+                    }`}
+                  >
+                    <div className="text-2xl mb-1">{sauce.image}</div>
+                    <div className="text-sm font-semibold">{sauce.name}</div>
+                  </button>
+                );
+              })}
+            </div>
+
+            <button
+              type="button"
+              disabled={!selectedDip}
+              onClick={() => {
+                if (!selectedDip) return;
+                const baseItem = dipItem;
+
+                const cartItem = {
+                  ...baseItem,
+                  cartId: Date.now() + Math.random(),
+                  quantity: 1,
+                  finalPrice: baseItem.withSeasoning || baseItem.price,
+                  sauces: [selectedDip],
+                  remarks: ''
+                };
+
+                setCart((prev) => [...prev, cartItem]);
+                setShowDipModal(false);
+                setDipItem(null);
+                setSelectedDip(null);
+              }}
+              className={`w-full py-3 rounded-lg font-semibold text-white ${
+                selectedDip
+                  ? 'bg-blue-600 hover:bg-blue-700'
+                  : 'bg-gray-400 cursor-not-allowed'
+              }`}
+            >
+              {selectedDip
+                ? `Add with ${selectedDip.name}`
+                : 'Select a sauce to continue'}
             </button>
           </div>
         </div>
@@ -1758,60 +1856,60 @@ function App() {
 
             {/* Payment Methods Tab */}
             {activeAdminTab === 'payment' && (
-  <div>
-    <div className="flex justify-between items-center mb-6">
-      <h2 className="text-2xl font-bold">Payment Method Availability</h2>
-      <button
-        onClick={addPaymentMethod}
-        className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 flex items-center gap-2"
-      >
-        <Plus size={20} />
-        Add Payment Method
-      </button>
-    </div>
+              <div>
+                <div className="flex justify-between items-center mb-6">
+                  <h2 className="text-2xl font-bold">Payment Method Availability</h2>
+                  <button
+                    onClick={addPaymentMethod}
+                    className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 flex items-center gap-2"
+                  >
+                    <Plus size={20} />
+                    Add Payment Method
+                  </button>
+                </div>
 
-    <div className="space-y-4">
-      {adminConfig.paymentMethods.map((method) => (
-        <div
-          key={method.id}
-          className="bg-gray-50 p-4 rounded-lg border-2 border-gray-200 flex justify-between items-center"
-        >
-          <div className="flex items-center gap-4">
-            <span className="text-3xl">{method.icon}</span>
-            <div>
-              <h3 className="font-semibold text-lg">{method.name}</h3>
-              <p className="text-sm text-gray-600">ID: {method.id}</p>
-            </div>
-          </div>
-          <label className="flex items-center gap-3 cursor-pointer">
-            <span className="text-sm font-medium">
-              {method.enabled ? 'Enabled' : 'Disabled'}
-            </span>
-            <div className="relative">
-              <input
-                type="checkbox"
-                checked={method.enabled}
-                onChange={() => togglePaymentMethod(method.id)}
-                className="sr-only"
-              />
-              <div
-                className={`w-14 h-8 rounded-full transition-colors ${
-                  method.enabled ? 'bg-green-500' : 'bg-gray-300'
-                }`}
-              >
-                <div
-                  className={`absolute top-1 left-1 w-6 h-6 bg-white rounded-full transition-transform ${
-                    method.enabled ? 'transform translate-x-6' : ''
-                  }`}
-                ></div>
+                <div className="space-y-4">
+                  {adminConfig.paymentMethods.map((method) => (
+                    <div
+                      key={method.id}
+                      className="bg-gray-50 p-4 rounded-lg border-2 border-gray-200 flex justify-between items-center"
+                    >
+                      <div className="flex items-center gap-4">
+                        <span className="text-3xl">{method.icon}</span>
+                        <div>
+                          <h3 className="font-semibold text-lg">{method.name}</h3>
+                          <p className="text-sm text-gray-600">ID: {method.id}</p>
+                        </div>
+                      </div>
+                      <label className="flex items-center gap-3 cursor-pointer">
+                        <span className="text-sm font-medium">
+                          {method.enabled ? 'Enabled' : 'Disabled'}
+                        </span>
+                        <div className="relative">
+                          <input
+                            type="checkbox"
+                            checked={method.enabled}
+                            onChange={() => togglePaymentMethod(method.id)}
+                            className="sr-only"
+                          />
+                          <div
+                            className={`w-14 h-8 rounded-full transition-colors ${
+                              method.enabled ? 'bg-green-500' : 'bg-gray-300'
+                            }`}
+                          >
+                            <div
+                              className={`absolute top-1 left-1 w-6 h-6 bg-white rounded-full transition-transform ${
+                                method.enabled ? 'transform translate-x-6' : ''
+                              }`}
+                            ></div>
+                          </div>
+                        </div>
+                      </label>
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
-          </label>
-        </div>
-      ))}
-    </div>
-  </div>
-)}
+            )}
 
           </div>
         </div>
@@ -2305,7 +2403,7 @@ function App() {
 
           {/* Delivery Charges */}
           <div className="mb-6 bg-blue-50 p-4 rounded-lg border-2 border-blue-200">
-            <h3 className="text-lg font-semibold mb-4">Delivery Charges</h3>
+            <h3 className="text-lg font-semibold mb-4">Delivery Charge Presets</h3>
             <div className="space-y-3">
               <div className="flex items-center gap-4">
                 <button
@@ -2420,6 +2518,7 @@ function App() {
     return (
       <>
         <CustomizationModal />
+        <DipModal />
         <div className="max-w-7xl mx-auto p-4 bg-gray-50 min-h-screen">
           {/* Header */}
           <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
