@@ -35,26 +35,10 @@ function formatPayment(pm) {
 // 🕒 Pakistan time helpers
 const PK_TZ = "Asia/Karachi";
 
-/**
- * Ensure the Supabase timestamp string is interpreted correctly
- * and then converted to Pakistan time.
- */
+// ✅ Do NOT append "Z" — just trust what Supabase sends
 function toPKDate(dateLike) {
   if (!dateLike) return null;
-
-  // Already a Date instance
-  if (dateLike instanceof Date) return dateLike;
-
-  let s = String(dateLike);
-
-  // If Supabase returned a string WITHOUT timezone (e.g. "2025-12-04T13:30:00"),
-  // treat it as UTC by appending "Z".
-  const hasTZ = /[zZ]|[+-]\d\d:?\d\d$/.test(s);
-  if (!hasTZ) {
-    s = s + "Z";
-  }
-
-  const d = new Date(s);
+  const d = dateLike instanceof Date ? dateLike : new Date(dateLike);
   if (Number.isNaN(d.getTime())) return null;
   return d;
 }
