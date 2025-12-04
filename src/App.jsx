@@ -35,13 +35,6 @@ function App() {
 
   const ADMIN_PASSWORD = 'admin123'; // Change this to a secure password
 
-  const dipOptions = [
-  { id: 'jalapeno', name: 'Jalapeno', icon: '🌶️' },
-  { id: 'atomic', name: 'Atomic', icon: '🔥' },
-  { id: 'chipotle', name: 'Chipotle', icon: '🌶️' },
-  { id: 'garlic', name: 'Garlic', icon: '🧄' },
-];
-
   // Default admin config
   const DEFAULT_ADMIN_CONFIG = {
     branches: ["Phase 6", "Phase 4", "Johar Town", "Bahria Town", "Cloud Kitchen", "Emporium"],
@@ -98,8 +91,6 @@ function App() {
   const [selectedSauces, setSelectedSauces] = useState([]);
   const [selectedAddons, setSelectedAddons] = useState([]);
 
-
-  
   // Hardcoded credentials (for kiosk/dev only – used as fallback)
   const HARD_CODED_USERS = {
     spider: '9696',
@@ -826,35 +817,11 @@ function App() {
     setSelectedAddons([]);
   };
 
-
-  // Helper: base function to push an item into the cart
-const addSimpleItemToCart = (item, customizations = {}) => {
-  const cartItem = {
-    ...item,
-    ...customizations,
-    cartId: Date.now() + Math.random(),
-    quantity: 1,
-    finalPrice: customizations.withSeasoning || item.price,
-    remarks: '',
-  };
-
-  setCart((prev) => [...prev, cartItem]);
-};
-
-
   const addToCart = (item, customizations = {}) => {
     if (item.category === 'mains') {
       openCustomizationModal(item);
       return;
     }
-
-    // If it's wings or nuggets, force a dip selection
-  if (item.category === 'wings' || item.category === 'nuggets') {
-    setDipItem(item);
-    setSelectedDip(null);
-    setShowDipModal(true);
-    return;
-  }
 
     const cartItem = {
       ...item,
@@ -1032,90 +999,6 @@ const addSimpleItemToCart = (item, customizations = {}) => {
       </div>
     </div>
   );
-const DipModal = () => {
-  if (!showDipModal || !dipItem) return null;
-
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-2xl max-w-md w-full">
-        <div className="flex justify-between items-center px-4 py-3 border-b">
-          <div>
-            <h2 className="text-lg font-bold">
-              Select Sauce Dip for {dipItem.name}
-            </h2>
-            <p className="text-xs text-gray-600">
-              Crispy Wings & Nuggs must have a dip.
-            </p>
-          </div>
-          <button
-            onClick={() => {
-              setShowDipModal(false);
-              setDipItem(null);
-              setSelectedDip(null);
-            }}
-            className="p-1 rounded-full hover:bg-gray-100"
-          >
-            <X size={18} />
-          </button>
-        </div>
-
-        <div className="p-4">
-          <div className="grid grid-cols-2 gap-3 mb-5">
-            {dipOptions.map((sauce) => {
-              const isSelected =
-                selectedDip && selectedDip.id === sauce.id;
-              return (
-                <button
-                  key={sauce.id}
-                  type="button"
-                  onClick={() => setSelectedDip(sauce)}
-                  className={`p-3 rounded-lg border-2 transition-all ${
-                    isSelected
-                      ? 'border-blue-500 bg-blue-50 shadow'
-                      : 'border-gray-300 hover:border-blue-300'
-                  }`}
-                >
-                  <div className="text-2xl mb-1">{sauce.icon}</div>
-                  <div className="text-sm font-semibold">{sauce.name}</div>
-                </button>
-              );
-            })}
-          </div>
-
-          <button
-            type="button"
-            disabled={!selectedDip}
-            onClick={() => {
-              if (!selectedDip) return;
-
-              const cartItem = {
-                ...dipItem,
-                cartId: Date.now() + Math.random(),
-                quantity: 1,
-                finalPrice: dipItem.price,
-                sauces: [selectedDip], // store chosen dip
-              };
-
-              setCart((prev) => [...prev, cartItem]);
-              setShowDipModal(false);
-              setDipItem(null);
-              setSelectedDip(null);
-            }}
-            className={`w-full py-3 rounded-lg font-semibold text-white ${
-              selectedDip
-                ? 'bg-blue-600 hover:bg-blue-700'
-                : 'bg-gray-400 cursor-not-allowed'
-            }`}
-          >
-            {selectedDip
-              ? `Add with ${selectedDip.name}`
-              : 'Select a dip to continue'}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
 
   // Customization Modal Component
   const CustomizationModal = () => {
@@ -2537,7 +2420,6 @@ const DipModal = () => {
     return (
       <>
         <CustomizationModal />
-        <DipModal />
         <div className="max-w-7xl mx-auto p-4 bg-gray-50 min-h-screen">
           {/* Header */}
           <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
