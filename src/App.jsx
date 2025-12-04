@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ShoppingCart, Plus, Minus, Trash2, Clock, MapPin, User, X, Settings, Edit, Save, RefreshCw } from 'lucide-react';
+import { ShoppingCart, Plus, Minus, Trash2, Clock, MapPin, User, X } from 'lucide-react';
 import html2canvas from "html2canvas";
 import './App.css';
 
@@ -19,71 +19,32 @@ function App() {
     id: '',
     password: ''
   });
-  const [loginError, setLoginError] = useState('');
+  const [loginError, setLoginError] = useState(''); // shows invalid creds message
   const [paymentMethod, setPaymentMethod] = useState('cash');
   const [currentStep, setCurrentStep] = useState('cashier');
   const [deliveryCharges, setDeliveryCharges] = useState(0);
   const [orderNumber, setOrderNumber] = useState(null);
 
-  // Admin state
-  const [adminPassword, setAdminPassword] = useState('');
-  const [adminError, setAdminError] = useState('');
-  const [activeAdminTab, setActiveAdminTab] = useState('addresses');
-  const [editingItem, setEditingItem] = useState(null);
-  const [adminConfigLoading, setAdminConfigLoading] = useState(true);
-  const [adminSaving, setAdminSaving] = useState(false);
+  // NEW: Branch selection state
+  const BRANCHES = ["Phase 6", "Phase 4", "Johar Town", "Bahria Town", "Cloud Kitchen", "Emporium"];
+  const [branch, setBranch] = useState(''); // kept across new orders for the logged-in cashier
 
-  const ADMIN_PASSWORD = 'admin123'; // Change this to a secure password
+  // NEW: Preset delivery locations (dropdown options)
+const ADDRESS_OPTIONS = [
+  { 
+    value: 'P6 Branch to Lahore Garrison University (LGU) (Delivery Kiosk)', 
+    label: 'P6 Branch to Lahore Garrison University (LGU) (Delivery Kiosk)' 
+  },
+  { 
+    value: 'Cloud Kitchen to Alhamra Cultural Complex, Lahore  Goonj 2.0 Cultural Festival  (Delivery Kiosk)', 
+    label: 'Cloud Kitchen to Alhamra Cultural Complex, Lahore  Goonj 2.0 Cultural Festival  (Delivery Kiosk)' 
+  },
+  { 
+    value: 'EXE Not Working', 
+    label: 'EXE Not Working' 
+  },
+];
 
-  // Default admin config
-  const DEFAULT_ADMIN_CONFIG = {
-    branches: ["Phase 6", "Phase 4", "Johar Town", "Bahria Town", "Cloud Kitchen", "Emporium"],
-    addresses: [
-      { id: 1, value: 'JJ KIOSK CC to 2nd INTERNATIONAL BOXING CHAMPIONSHIP', label: 'JJ KIOSK CC to 2nd INTERNATIONAL BOXING CHAMPIONSHIP' }
-    ],
-    paymentMethods: [
-      { id: 'cash', name: 'Cash', icon: '💰', enabled: true },
-      { id: 'credit', name: 'Credit Card', icon: '💳', enabled: true },
-      { id: 'online', name: 'Online Payment', icon: '📱', enabled: true },
-      { id: 'marketing', name: 'Marketing PR Tab', icon: '📣', enabled: true }
-    ],
-    deliveryChargesPresets: [
-      { amount: 0, label: 'No Delivery Charges' },
-      { amount: 100, label: 'Standard Delivery' }
-    ],
-    // NEW: cashier users editable from Admin Panel
-    users: [
-      {
-        loginId: 'spider',
-        name: 'Spider',
-        password: '9696',
-        branch: 'Phase 6',
-        role: 'cashier',
-        active: true
-      },
-      {
-        loginId: 'lupin',
-        name: 'Lupin',
-        password: '9696',
-        branch: 'Phase 4',
-        role: 'cashier',
-        active: true
-      },
-      {
-        loginId: 'wehshi',
-        name: 'Wehshi',
-        password: '9696',
-        branch: 'Johar Town',
-        role: 'cashier',
-        active: true
-      }
-    ],
-    // Per-item overrides for menu items
-    menuOverrides: {}   // { [itemId]: { name, price, description, withSeasoning, enabled } }
-  };
-
-  const [adminConfig, setAdminConfig] = useState(DEFAULT_ADMIN_CONFIG);
-  const [branch, setBranch] = useState('');
 
   // Customization modal state
   const [showCustomizationModal, setShowCustomizationModal] = useState(false);
@@ -91,12 +52,13 @@ function App() {
   const [selectedSauces, setSelectedSauces] = useState([]);
   const [selectedAddons, setSelectedAddons] = useState([]);
 
-  // Hardcoded credentials (for kiosk/dev only – used as fallback)
+  // ---- Hardcoded credentials (for kiosk/dev only) ----
   const HARD_CODED_USERS = {
     spider: '9696',
     lupin: '9696',
     wehshi: '9696'
   };
+  // ----------------------------------------------------
 
   // ======== LOGIN PERSISTENCE (localStorage) =========
   const SESSION_KEY = 'jj_kiosk_session';
@@ -108,6 +70,7 @@ function App() {
       branch: branch || '',
       ts: Date.now()
     };
+    // never store password
     localStorage.setItem(SESSION_KEY, JSON.stringify(payload));
   };
 
@@ -123,7 +86,8 @@ function App() {
       const sess = JSON.parse(raw);
       if (sess?.cashier?.id) {
         setCashierInfo(ci => ({ ...ci, name: sess.cashier.name || '', id: sess.cashier.id || '', password: '' }));
-        const step = ['cashier','customer','menu','confirm','receipt','admin','admin-dashboard'].includes(sess.currentStep) ? sess.currentStep : 'customer';
+        // default to 'customer' if step is missing or invalid
+        const step = ['cashier','customer','menu','confirm','receipt'].includes(sess.currentStep) ? sess.currentStep : 'customer';
         setCurrentStep(step);
       }
       if (sess?.branch) setBranch(sess.branch);
@@ -132,145 +96,15 @@ function App() {
     }
   }, []);
 
+  // Helper to set step + persist
   const gotoStep = (step) => {
     setCurrentStep(step);
     setTimeout(() => saveSession(step), 0);
   };
+  // ===================================================
 
   const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://lugtmmcpcgzyytkzqozn.supabase.co';
   const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx1Z3RtbWNwY2d6eXl0a3pxb3puIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkzODk0MDQsImV4cCI6MjA3NDk2NTQwNH0.uSEDsRNpH_QGwgGxrrxuYKCkuH3lszd8O9w7GN9INpE';
-
-  // ======== SUPABASE ADMIN CONFIG FUNCTIONS =========
-  
-  // Load admin config from Supabase on app start
-  useEffect(() => {
-    loadAdminConfig();
-  }, []);
-
-  const loadAdminConfig = async () => {
-    try {
-      setAdminConfigLoading(true);
-
-      const response = await fetch(
-        `${SUPABASE_URL}/rest/v1/kiosk_config?select=*&order=updated_at.desc&limit=1`,
-        {
-          method: 'GET',
-          headers: {
-            apikey: SUPABASE_ANON_KEY,
-            Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-          },
-        }
-      );
-
-      if (response.ok) {
-        const data = await response.json();
-        if (data && data.length > 0) {
-          const rawConfig = data[0].config_data || {};
-
-          // Merge with defaults so new fields like menuOverrides/users always exist
-          const mergedConfig = {
-            ...DEFAULT_ADMIN_CONFIG,
-            ...rawConfig,
-            menuOverrides:
-              rawConfig.menuOverrides || DEFAULT_ADMIN_CONFIG.menuOverrides,
-            users:
-              rawConfig.users || DEFAULT_ADMIN_CONFIG.users,
-          };
-
-          console.log('✅ Admin config loaded from Supabase:', mergedConfig);
-          setAdminConfig(mergedConfig);
-        } else {
-          console.log('ℹ️ No config found in Supabase, using defaults');
-          await saveAdminConfigToSupabase(DEFAULT_ADMIN_CONFIG);
-          setAdminConfig(DEFAULT_ADMIN_CONFIG);
-        }
-      } else {
-        console.warn('⚠️ Failed to load config from Supabase, using defaults');
-        setAdminConfig(DEFAULT_ADMIN_CONFIG);
-      }
-    } catch (error) {
-      console.error('Error loading admin config:', error);
-      // fall back to defaults so app still works
-      setAdminConfig(DEFAULT_ADMIN_CONFIG);
-    } finally {
-      setAdminConfigLoading(false);
-    }
-  };
-
-  const saveAdminConfigToSupabase = async (config) => {
-    try {
-      setAdminSaving(true);
-      
-      // First, try to get existing config
-      const getResponse = await fetch(`${SUPABASE_URL}/rest/v1/kiosk_config?select=id&limit=1`, {
-        method: 'GET',
-        headers: {
-          'apikey': SUPABASE_ANON_KEY,
-          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-        }
-      });
-
-      const existingData = await getResponse.json();
-      
-      if (existingData && existingData.length > 0) {
-        // Update existing config
-        const updateResponse = await fetch(`${SUPABASE_URL}/rest/v1/kiosk_config?id=eq.${existingData[0].id}`, {
-          method: 'PATCH',
-          headers: {
-            'apikey': SUPABASE_ANON_KEY,
-            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-            'Content-Type': 'application/json',
-            'Prefer': 'return=minimal'
-          },
-          body: JSON.stringify({
-            config_data: config,
-            updated_at: new Date().toISOString()
-          })
-        });
-
-        if (updateResponse.ok || updateResponse.status === 204) {
-          console.log('✅ Admin config updated in Supabase');
-          return true;
-        }
-      } else {
-        // Insert new config
-        const insertResponse = await fetch(`${SUPABASE_URL}/rest/v1/kiosk_config`, {
-          method: 'POST',
-          headers: {
-            'apikey': SUPABASE_ANON_KEY,
-            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-            'Content-Type': 'application/json',
-            'Prefer': 'return=minimal'
-          },
-          body: JSON.stringify({
-            config_data: config,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          })
-        });
-
-        if (insertResponse.ok || insertResponse.status === 201) {
-          console.log('✅ Admin config created in Supabase');
-          return true;
-        }
-      }
-      
-      return false;
-    } catch (error) {
-      console.error('Error saving admin config:', error);
-      return false;
-    } finally {
-      setAdminSaving(false);
-    }
-  };
-
-  // Update admin config and save to Supabase
-  const updateAdminConfig = async (newConfig) => {
-    setAdminConfig(newConfig);
-    await saveAdminConfigToSupabase(newConfig);
-  };
-
-  // ===================================================
 
   const submitToSupabase = async (orderData) => {
     try {
@@ -305,6 +139,7 @@ function App() {
           grand_total: orderData.grandTotal,
           status: orderData.status,
           estimated_time: orderData.estimatedTime,
+          // NEW: branch (ensure your Supabase table has a 'branch' column)
           branch: orderData.branch
         })
       });
@@ -416,238 +251,9 @@ function App() {
     { id: 'lemonades', name: 'Lemonades', icon: '🥤' }
   ];
 
-  // Helper: apply admin menu overrides (price/name/description/visibility)
-  const getEffectiveMenuItems = (categoryId) => {
-    const items = menuData[categoryId] || {};
-    const overrides = adminConfig.menuOverrides || {};
-
-    return (menuData[categoryId] || [])
-      .map((item) => {
-        const ov = overrides[item.id];
-        if (!ov) return item;
-
-        return {
-          ...item,
-          ...ov,
-          price:
-            ov.price != null && !Number.isNaN(ov.price)
-              ? ov.price
-              : item.price,
-          withSeasoning:
-            ov.withSeasoning != null && !Number.isNaN(ov.withSeasoning)
-              ? ov.withSeasoning
-              : item.withSeasoning
-        };
-      })
-      .filter((item) => {
-        const ov = overrides[item.id];
-        // enabled === false → hide item
-        return ov && ov.enabled === false ? false : true;
-      });
-  };
-
-  // Admin Functions
-  const handleAdminLogin = () => {
-    if (adminPassword === ADMIN_PASSWORD) {
-      setAdminError('');
-      gotoStep('admin-dashboard');
-    } else {
-      setAdminError('Invalid admin password');
-    }
-  };
-
-  const addAddress = () => {
-    const newId = Math.max(...adminConfig.addresses.map(a => a.id), 0) + 1;
-    const newConfig = {
-      ...adminConfig,
-      addresses: [...adminConfig.addresses, { id: newId, value: '', label: '' }]
-    };
-    updateAdminConfig(newConfig);
-    setEditingItem(newId);
-  };
-
-  const updateAddress = async (id, field, value) => {
-    const newConfig = {
-      ...adminConfig,
-      addresses: adminConfig.addresses.map(addr =>
-        addr.id === id ? { ...addr, [field]: value } : addr
-      )
-    };
-    await updateAdminConfig(newConfig);
-  };
-
-  const deleteAddress = async (id) => {
-    if (window.confirm('Are you sure you want to delete this address?')) {
-      const newConfig = {
-        ...adminConfig,
-        addresses: adminConfig.addresses.filter(addr => addr.id !== id)
-      };
-      await updateAdminConfig(newConfig);
-    }
-  };
-
-  const addBranch = async () => {
-    const branchName = prompt('Enter new branch name:');
-    if (branchName && branchName.trim()) {
-      const newConfig = {
-        ...adminConfig,
-        branches: [...adminConfig.branches, branchName.trim()]
-      };
-      await updateAdminConfig(newConfig);
-    }
-  };
-
-  const deleteBranch = async (branchName) => {
-    if (window.confirm(`Are you sure you want to delete "${branchName}"?`)) {
-      const newConfig = {
-        ...adminConfig,
-        branches: adminConfig.branches.filter(b => b !== branchName)
-      };
-      await updateAdminConfig(newConfig);
-    }
-  };
-
-  const updateDeliveryPreset = async (index, field, value) => {
-    const updated = [...adminConfig.deliveryChargesPresets];
-    updated[index] = { ...updated[index], [field]: field === 'amount' ? parseInt(value) || 0 : value };
-    const newConfig = {
-      ...adminConfig,
-      deliveryChargesPresets: updated
-    };
-    await updateAdminConfig(newConfig);
-  };
-
-  const addDeliveryPreset = async () => {
-    const newConfig = {
-      ...adminConfig,
-      deliveryChargesPresets: [
-        ...adminConfig.deliveryChargesPresets,
-        { amount: 0, label: 'New Preset' }
-      ]
-    };
-    await updateAdminConfig(newConfig);
-  };
-
-  const deleteDeliveryPreset = async (index) => {
-    if (window.confirm('Delete this delivery preset?')) {
-      const newConfig = {
-        ...adminConfig,
-        deliveryChargesPresets: adminConfig.deliveryChargesPresets.filter((_, i) => i !== index)
-      };
-      await updateAdminConfig(newConfig);
-    }
-  };
-
-  const togglePaymentMethod = async (methodId) => {
-    const newConfig = {
-      ...adminConfig,
-      paymentMethods: adminConfig.paymentMethods.map(pm =>
-        pm.id === methodId ? { ...pm, enabled: !pm.enabled } : pm
-      )
-    };
-    await updateAdminConfig(newConfig);
-  };
-
-  // ====== NEW: User Management Functions (Admin Panel) ======
-  const addUser = async () => {
-    const loginId = prompt('Enter new cashier login ID (e.g., spider):');
-    if (!loginId || !loginId.trim()) return;
-
-    const trimmedId = loginId.trim();
-    const exists = (adminConfig.users || []).some(
-      u => (u.loginId || '').toLowerCase() === trimmedId.toLowerCase()
-    );
-    if (exists) {
-      alert('A user with this login ID already exists.');
-      return;
-    }
-
-    const newUser = {
-      loginId: trimmedId,
-      name: '',
-      password: '',
-      branch: '',
-      role: 'cashier',
-      active: true
-    };
-
-    const newConfig = {
-      ...adminConfig,
-      users: [...(adminConfig.users || []), newUser]
-    };
-    await updateAdminConfig(newConfig);
-  };
-
-  const updateUserField = async (index, field, value) => {
-    const users = [...(adminConfig.users || [])];
-    users[index] = { ...users[index], [field]: value };
-    const newConfig = {
-      ...adminConfig,
-      users
-    };
-    await updateAdminConfig(newConfig);
-  };
-
-  const toggleUserActive = async (index) => {
-    const users = [...(adminConfig.users || [])];
-    const current = users[index];
-    users[index] = { ...current, active: current.active === false ? true : false };
-    const newConfig = {
-      ...adminConfig,
-      users
-    };
-    await updateAdminConfig(newConfig);
-  };
-
-  const deleteUser = async (index) => {
-    if (!window.confirm('Are you sure you want to delete this user?')) return;
-    const users = (adminConfig.users || []).filter((_, i) => i !== index);
-    const newConfig = {
-      ...adminConfig,
-      users
-    };
-    await updateAdminConfig(newConfig);
-  };
-
-  const updateMenuItemOverride = async (itemId, changes) => {
-    const currentOverrides = adminConfig.menuOverrides || {};
-    const existing = currentOverrides[itemId] || {};
-
-    const updatedOverrides = {
-      ...currentOverrides,
-      [itemId]: {
-        ...existing,
-        ...changes
-      }
-    };
-
-    const newConfig = {
-      ...adminConfig,
-      menuOverrides: updatedOverrides
-    };
-
-    await updateAdminConfig(newConfig);
-  };
-
-  const resetMenuItemOverride = async (itemId) => {
-    const currentOverrides = adminConfig.menuOverrides || {};
-    if (!currentOverrides[itemId]) return;
-
-    const updatedOverrides = { ...currentOverrides };
-    delete updatedOverrides[itemId];
-
-    const newConfig = {
-      ...adminConfig,
-      menuOverrides: updatedOverrides
-    };
-
-    await updateAdminConfig(newConfig);
-  };
-
-  // Login handler using adminConfig.users (with fallback to hardcoded creds)
+  // ---- Login handler using hardcoded creds ----
   const handleLogin = () => {
-    const enteredIdRaw = (cashierInfo.id || '').trim();
-    const enteredId = enteredIdRaw.toLowerCase();
+    const enteredId = (cashierInfo.id || '').trim().toLowerCase();
     const enteredPassword = (cashierInfo.password || '').toString();
 
     if (!enteredId || !enteredPassword) {
@@ -655,44 +261,10 @@ function App() {
       return;
     }
 
-    const usersList = adminConfig.users || [];
-
-    // 1) Try matching a user from adminConfig.users
-    const matchedUser = usersList.find(
-      (u) =>
-        u.loginId &&
-        u.loginId.toLowerCase() === enteredId &&
-        (u.active !== false) // treat undefined as active
-    );
-
-    if (matchedUser && matchedUser.password === enteredPassword) {
-      setLoginError('');
-      const displayName =
-        (cashierInfo.name && cashierInfo.name.trim()) ||
-        matchedUser.name ||
-        matchedUser.loginId.charAt(0).toUpperCase() + matchedUser.loginId.slice(1);
-
-      setCashierInfo((ci) => ({
-        ...ci,
-        name: displayName,
-        id: matchedUser.loginId,
-        password: ''
-      }));
-
-      if (matchedUser.branch && !branch) {
-        setBranch(matchedUser.branch);
-      }
-
-      setTimeout(() => saveSession('customer'), 0);
-      gotoStep('customer');
-      return;
-    }
-
-    // 2) Fallback to old hardcoded users (for backwards compatibility)
     if (HARD_CODED_USERS[enteredId] && HARD_CODED_USERS[enteredId] === enteredPassword) {
       setLoginError('');
       if (!cashierInfo.name || cashierInfo.name.trim() === '') {
-        const displayName = enteredIdRaw.charAt(0).toUpperCase() + enteredIdRaw.slice(1);
+        const displayName = enteredId.charAt(0).toUpperCase() + enteredId.slice(1);
         setCashierInfo(ci => ({ ...ci, name: displayName }));
       }
       setCashierInfo(ci => ({ ...ci, password: '' }));
@@ -702,6 +274,7 @@ function App() {
       setLoginError('Invalid cashier ID or password.');
     }
   };
+  // ----------------------------------------------------
 
   // Open customization modal for mains items
   const openCustomizationModal = (item) => {
@@ -711,12 +284,13 @@ function App() {
     setShowCustomizationModal(true);
   };
 
+  // --- Sauces: allow duplicates (max 2) ---
   const addSauce = (sauce) => {
     if (selectedSauces.length >= 2) {
       alert("You can only select 2 sauces total");
       return;
     }
-    setSelectedSauces([...selectedSauces, sauce]);
+    setSelectedSauces([...selectedSauces, sauce]); // push duplicate allowed
   };
 
   const removeSauceAt = (idx) => {
@@ -727,6 +301,7 @@ function App() {
 
   const sauceCount = (sauceId) => selectedSauces.filter((s) => s.id === sauceId).length;
 
+  // Add-ons toggle (no duplicates)
   const toggleAddon = (addon) => {
     if (selectedAddons.find(a => a.id === addon.id)) {
       setSelectedAddons(selectedAddons.filter(a => a.id !== addon.id));
@@ -751,7 +326,7 @@ function App() {
       cartId: Date.now() + Math.random(),
       quantity: 1,
       finalPrice: getCustomizedPrice(),
-      sauces: selectedSauces,
+      sauces: selectedSauces, // duplicates preserved
       addons: selectedAddons,
       remarks: ''
     };
@@ -810,49 +385,50 @@ function App() {
   };
 
   const submitOrder = async () => {
-    setIsSubmitting(true);
+  setIsSubmitting(true); // show loading
 
-    const newOrderNumber = Math.floor(Math.random() * 10000);
-    setOrderNumber(newOrderNumber);
+  const newOrderNumber = Math.floor(Math.random() * 10000);
+  setOrderNumber(newOrderNumber);
 
-    const orderData = {
-      orderNumber: newOrderNumber,
-      timestamp: new Date().toISOString(),
-      cashier: { name: cashierInfo.name, id: cashierInfo.id },
-      customer: customerInfo,
-      orderType,
-      paymentMethod,
-      branch,
-      items: cart.map(item => ({
-        name: item.name,
-        quantity: item.quantity,
-        unitPrice: item.finalPrice,
-        totalPrice: item.finalPrice * item.quantity,
-        withSeasoning: !!item.withSeasoning,
-        category: item.category,
-        sauces: item.sauces ? item.sauces.map(s => s.name) : [],
-        addons: item.addons ? item.addons.map(a => a.name) : [],
-        remarks: item.remarks || ''
-      })),
-      itemsTotal: cart.reduce((t, i) => t + (i.finalPrice * i.quantity), 0),
-      deliveryCharge: deliveryCharges,
-      grandTotal: getTotalPrice(),
-      status: 'Pending',
-      estimatedTime: '15-20 minutes'
-    };
-
-    console.log('Order submitted:', orderData);
-
-    const supabaseSuccess = await submitToSupabase(orderData);
-    setIsSubmitting(false);
-
-    if (!supabaseSuccess) {
-      alert('Warning: Order not saved to database. Please check your internet connection or contact support.');
-    }
-
-    saveSession('receipt');
-    gotoStep('receipt');
+  const orderData = {
+    orderNumber: newOrderNumber,
+    timestamp: new Date().toISOString(),
+    cashier: { name: cashierInfo.name, id: cashierInfo.id },
+    customer: customerInfo,
+    orderType,
+    paymentMethod,
+    branch,
+    items: cart.map(item => ({
+      name: item.name,
+      quantity: item.quantity,
+      unitPrice: item.finalPrice,
+      totalPrice: item.finalPrice * item.quantity,
+      withSeasoning: !!item.withSeasoning,
+      category: item.category,
+      sauces: item.sauces ? item.sauces.map(s => s.name) : [],
+      addons: item.addons ? item.addons.map(a => a.name) : [],
+      remarks: item.remarks || ''
+    })),
+    itemsTotal: cart.reduce((t, i) => t + (i.finalPrice * i.quantity), 0),
+    deliveryCharge: deliveryCharges,
+    grandTotal: getTotalPrice(),
+    status: 'Pending',
+    estimatedTime: '15-20 minutes'
   };
+
+  console.log('Order submitted:', orderData);
+
+  const supabaseSuccess = await submitToSupabase(orderData);
+  setIsSubmitting(false); // hide loading when done
+
+  if (!supabaseSuccess) {
+    alert('Warning: Order not saved to database. Please check your internet connection or contact support.');
+  }
+
+  saveSession('receipt');
+  gotoStep('receipt');
+};
+
 
   const printOrder = () => {
     window.print();
@@ -884,6 +460,7 @@ function App() {
   const startNewOrder = () => {
     setCart([]);
     setCustomerInfo({ name: '', phone: '', address: '', instructions: '' });
+    // Keep cashier and branch for next order, but clear password
     setCashierInfo(ci => ({ name: ci.name, id: ci.id, password: '' }));
     setPaymentMethod('cash');
     setDeliveryCharges(0);
@@ -903,7 +480,7 @@ function App() {
     setActiveCategory('mains');
     setOrderNumber(null);
     setLoginError('');
-    setBranch('');
+    setBranch(''); // clear branch on logout
     clearSession();
     gotoStep('cashier');
   };
@@ -953,6 +530,7 @@ function App() {
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
         <div className="bg-white rounded-lg shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+          {/* Header */}
           <div className="sticky top-0 bg-gradient-to-r from-orange-500 to-red-500 text-white p-4 flex justify-between items-center">
             <div>
               <h2 className="text-2xl font-bold">{currentItem.image} {currentItem.name}</h2>
@@ -967,6 +545,7 @@ function App() {
           </div>
 
           <div className="p-6">
+            {/* Select Sauces (duplicates allowed) */}
             <div className="mb-6">
               <h3 className="text-lg font-bold mb-3 flex items-center gap-2">
                 <span className="bg-orange-100 text-orange-800 px-3 py-1 rounded-full text-sm">
@@ -1001,6 +580,7 @@ function App() {
                 })}
               </div>
 
+              {/* Selected list with quick remove */}
               {selectedSauces.length > 0 && (
                 <div className="mt-3 flex flex-wrap gap-2">
                   {selectedSauces.map((s, idx) => (
@@ -1022,6 +602,7 @@ function App() {
               )}
             </div>
 
+            {/* Select Add-ons */}
             <div className="mb-6">
               <h3 className="text-lg font-bold mb-3">Add-ons (Optional)</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -1048,6 +629,7 @@ function App() {
               </div>
             </div>
 
+            {/* Price Summary */}
             <div className="bg-gray-100 rounded-lg p-4 mb-4">
               <div className="flex justify-between items-center mb-2">
                 <span className="text-sm">Base Price:</span>
@@ -1069,6 +651,7 @@ function App() {
               </div>
             </div>
 
+            {/* Add to Cart Button */}
             <button
               onClick={addCustomizedToCart}
               disabled={selectedSauces.length !== 2}
@@ -1083,672 +666,6 @@ function App() {
       </div>
     );
   };
-
-  // Loading screen while admin config loads
-  if (adminConfigLoading) {
-    return (
-      <div className="max-w-md mx-auto p-4 bg-gray-50 min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <RefreshCw className="animate-spin mx-auto mb-4 text-orange-500" size={48} />
-          <h2 className="text-xl font-bold mb-2">Loading Kiosk Settings...</h2>
-          <p className="text-gray-600">Syncing with Supabase database</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Admin Login Step
-  if (currentStep === 'admin') {
-    return (
-      <div className="max-w-md mx-auto p-4 bg-gray-50 min-h-screen flex items-center">
-        <div className="w-full bg-white rounded-lg shadow-lg p-8">
-          <div className="text-center mb-8">
-            <Settings className="mx-auto text-purple-600 mb-4" size={64} />
-            <h1 className="text-3xl font-bold text-gray-800 mb-2">ADMIN PANEL</h1>
-            <p className="text-gray-600">Johnny & Jugnu Kiosk Management</p>
-          </div>
-          
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium mb-2">Admin Password *</label>
-              <input
-                type="password"
-                value={adminPassword}
-                onChange={(e) => setAdminPassword(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && handleAdminLogin()}
-                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                placeholder="Enter admin password"
-                required
-              />
-            </div>
-
-            {adminError && (
-              <div className="text-sm text-red-600 font-semibold">
-                {adminError}
-              </div>
-            )}
-          </div>
-          
-          <button
-            onClick={handleAdminLogin}
-            className="w-full mt-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-semibold"
-          >
-            Login to Admin Panel
-          </button>
-
-          <button
-            onClick={() => gotoStep('cashier')}
-            className="w-full mt-3 py-3 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors font-semibold"
-          >
-            Back to Cashier Login
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  // Admin Dashboard Step
-  if (currentStep === 'admin-dashboard') {
-    return (
-      <div className="max-w-7xl mx-auto p-4 bg-gray-50 min-h-screen">
-        <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
-          <div className="flex justify-between items-center">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-800 mb-2">⚙️ ADMIN DASHBOARD</h1>
-              <p className="text-gray-600">Manage kiosk configuration - synced across all kiosks via Supabase</p>
-            </div>
-            <div className="flex gap-3">
-              <button
-                onClick={loadAdminConfig}
-                className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 flex items-center gap-2"
-                disabled={adminConfigLoading}
-              >
-                <RefreshCw size={18} className={adminConfigLoading ? 'animate-spin' : ''} />
-                Refresh
-              </button>
-              <button
-                onClick={() => {
-                  setAdminPassword('');
-                  gotoStep('cashier');
-                }}
-                className="px-6 py-3 bg-red-500 text-white rounded-lg hover:bg-red-600"
-              >
-                Exit Admin Panel
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Saving indicator */}
-        {adminSaving && (
-          <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-4 mb-6 flex items-center gap-3">
-            <RefreshCw className="animate-spin text-blue-600" size={20} />
-            <p className="text-blue-800 font-semibold">💾 Saving changes to Supabase...</p>
-          </div>
-        )}
-
-        {/* Admin Tabs */}
-        <div className="bg-white rounded-lg shadow-lg mb-6">
-          <div className="flex border-b overflow-x-auto">
-            <button
-              onClick={() => setActiveAdminTab('addresses')}
-              className={`px-6 py-4 font-semibold whitespace-nowrap ${
-                activeAdminTab === 'addresses'
-                  ? 'border-b-4 border-purple-600 text-purple-600'
-                  : 'text-gray-600 hover:text-purple-600'
-              }`}
-            >
-              📍 Delivery Addresses
-            </button>
-            <button
-              onClick={() => setActiveAdminTab('branches')}
-              className={`px-6 py-4 font-semibold whitespace-nowrap ${
-                activeAdminTab === 'branches'
-                  ? 'border-b-4 border-purple-600 text-purple-600'
-                  : 'text-gray-600 hover:text-purple-600'
-              }`}
-            >
-              🏢 Branches
-            </button>
-            <button
-              onClick={() => setActiveAdminTab('users')}
-              className={`px-6 py-4 font-semibold whitespace-nowrap ${
-                activeAdminTab === 'users'
-                  ? 'border-b-4 border-purple-600 text-purple-600'
-                  : 'text-gray-600 hover:text-purple-600'
-              }`}
-            >
-              👤 Users
-            </button>
-            <button
-              onClick={() => setActiveAdminTab('menu')}
-              className={`px-6 py-4 font-semibold whitespace-nowrap ${
-                activeAdminTab === 'menu'
-                  ? 'border-b-4 border-purple-600 text-purple-600'
-                  : 'text-gray-600 hover:text-purple-600'
-              }`}
-            >
-              📋 Menu &amp; Pricing
-            </button>
-
-            <button
-              onClick={() => setActiveAdminTab('delivery')}
-              className={`px-6 py-4 font-semibold whitespace-nowrap ${
-                activeAdminTab === 'delivery'
-                  ? 'border-b-4 border-purple-600 text-purple-600'
-                  : 'text-gray-600 hover:text-purple-600'
-              }`}
-            >
-              🚚 Delivery Charges
-            </button>
-            <button
-              onClick={() => setActiveAdminTab('payment')}
-              className={`px-6 py-4 font-semibold whitespace-nowrap ${
-                activeAdminTab === 'payment'
-                  ? 'border-b-4 border-purple-600 text-purple-600'
-                  : 'text-gray-600 hover:text-purple-600'
-              }`}
-            >
-              💳 Payment Methods
-            </button>
-          </div>
-
-          <div className="p-6">
-            {/* Addresses Tab */}
-            {activeAdminTab === 'addresses' && (
-              <div>
-                <div className="flex justify-between items-center mb-6">
-                  <h2 className="text-2xl font-bold">Manage Delivery Addresses</h2>
-                  <button
-                    onClick={addAddress}
-                    className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 flex items-center gap-2"
-                  >
-                    <Plus size={20} />
-                    Add Address
-                  </button>
-                </div>
-
-                <div className="space-y-4">
-                  {adminConfig.addresses.map((addr) => (
-                    <div key={addr.id} className="bg-gray-50 p-4 rounded-lg border-2 border-gray-200">
-                      <div className="grid md:grid-cols-2 gap-4 mb-3">
-                        <div>
-                          <label className="block text-sm font-medium mb-2">Display Label</label>
-                          <input
-                            type="text"
-                            value={addr.label}
-                            onChange={(e) => updateAddress(addr.id, 'label', e.target.value)}
-                            className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
-                            placeholder="E.g., Boxing Championship Event"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium mb-2">Full Address Value</label>
-                          <input
-                            type="text"
-                            value={addr.value}
-                            onChange={(e) => updateAddress(addr.id, 'value', e.target.value)}
-                            className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
-                            placeholder="Complete address details"
-                          />
-                        </div>
-                      </div>
-                      <div className="flex justify-end gap-2">
-                        <button
-                          onClick={() => deleteAddress(addr.id)}
-                          className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 flex items-center gap-2"
-                        >
-                          <Trash2 size={16} />
-                          Delete
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-
-                  {adminConfig.addresses.length === 0 && (
-                    <div className="text-center py-12 text-gray-500">
-                      <MapPin size={48} className="mx-auto mb-4 opacity-50" />
-                      <p className="text-lg">No delivery addresses configured</p>
-                      <p className="text-sm">Click "Add Address" to create your first delivery location</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Branches Tab */}
-            {activeAdminTab === 'branches' && (
-              <div>
-                <div className="flex justify-between items-center mb-6">
-                  <h2 className="text-2xl font-bold">Manage Branches</h2>
-                  <button
-                    onClick={addBranch}
-                    className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 flex items-center gap-2"
-                  >
-                    <Plus size={20} />
-                    Add Branch
-                  </button>
-                </div>
-
-                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {adminConfig.branches.map((branchName, index) => (
-                    <div key={index} className="bg-gray-50 p-4 rounded-lg border-2 border-gray-200 flex justify-between items-center">
-                      <div className="flex items-center gap-3">
-                        <span className="text-2xl">🏢</span>
-                        <span className="font-semibold">{branchName}</span>
-                      </div>
-                      <button
-                        onClick={() => deleteBranch(branchName)}
-                        className="text-red-500 hover:text-red-700"
-                      >
-                        <Trash2 size={18} />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-
-                {adminConfig.branches.length === 0 && (
-                  <div className="text-center py-12 text-gray-500">
-                    <p className="text-lg">No branches configured</p>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Users Tab */}
-            {activeAdminTab === 'users' && (
-              <div>
-                <div className="flex justify-between items-center mb-6">
-                  <h2 className="text-2xl font-bold">Manage Cashier Users</h2>
-                  <button
-                    onClick={addUser}
-                    className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 flex items-center gap-2"
-                  >
-                    <Plus size={20} />
-                    Add User
-                  </button>
-                </div>
-
-                {adminConfig.users && adminConfig.users.length > 0 ? (
-                  <div className="space-y-4">
-                    {adminConfig.users.map((user, index) => (
-                      <div key={index} className="bg-gray-50 p-4 rounded-lg border-2 border-gray-200">
-                        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-                          <div>
-                            <label className="block text-xs font-medium mb-1">Login ID</label>
-                            <input
-                              type="text"
-                              value={user.loginId || ''}
-                              onChange={(e) => updateUserField(index, 'loginId', e.target.value)}
-                              className="w-full p-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500"
-                              placeholder="e.g., spider"
-                            />
-                            <p className="text-[10px] text-gray-500 mt-1">
-                              This is what the cashier types in as the ID.
-                            </p>
-                          </div>
-                          <div>
-                            <label className="block text-xs font-medium mb-1">Display Name</label>
-                            <input
-                              type="text"
-                              value={user.name || ''}
-                              onChange={(e) => updateUserField(index, 'name', e.target.value)}
-                              className="w-full p-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500"
-                              placeholder="Cashier name on receipt"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-xs font-medium mb-1">Password</label>
-                            <input
-                              type="text"
-                              value={user.password || ''}
-                              onChange={(e) => updateUserField(index, 'password', e.target.value)}
-                              className="w-full p-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500"
-                              placeholder="Login password"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-xs font-medium mb-1">Branch</label>
-                            <select
-                              value={user.branch || ''}
-                              onChange={(e) => updateUserField(index, 'branch', e.target.value)}
-                              className="w-full p-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500"
-                            >
-                              <option value="">(Optional) Select branch</option>
-                              {adminConfig.branches.map((b) => (
-                                <option key={b} value={b}>{b}</option>
-                              ))}
-                            </select>
-                          </div>
-                          <div>
-                            <label className="block text-xs font-medium mb-1">Role</label>
-                            <select
-                              value={user.role || 'cashier'}
-                              onChange={(e) => updateUserField(index, 'role', e.target.value)}
-                              className="w-full p-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500"
-                            >
-                              <option value="cashier">Cashier</option>
-                              <option value="supervisor">Supervisor</option>
-                              <option value="admin">Admin (future use)</option>
-                            </select>
-                          </div>
-                          <div className="flex flex-col justify-between">
-                            <label className="block text-xs font-medium mb-1">Status</label>
-                            <div className="flex items-center justify-between gap-3">
-                              <label className="flex items-center gap-3 cursor-pointer">
-                                <span className="text-sm font-medium">
-                                  {user.active === false ? 'Inactive' : 'Active'}
-                                </span>
-                                <div className="relative">
-                                  <input
-                                    type="checkbox"
-                                    checked={user.active !== false}
-                                    onChange={() => toggleUserActive(index)}
-                                    className="sr-only"
-                                  />
-                                  <div className={`w-14 h-8 rounded-full transition-colors ${
-                                    user.active === false ? 'bg-gray-300' : 'bg-green-500'
-                                  }`}>
-                                    <div className={`absolute top-1 left-1 w-6 h-6 bg-white rounded-full transition-transform ${
-                                      user.active === false ? '' : 'transform translate-x-6'
-                                    }`}></div>
-                                  </div>
-                                </div>
-                              </label>
-                              <button
-                                onClick={() => deleteUser(index)}
-                                className="px-3 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 text-xs flex items-center gap-2"
-                              >
-                                <Trash2 size={14} />
-                                Delete
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-12 text-gray-500">
-                    <User size={48} className="mx-auto mb-4 opacity-50" />
-                    <p className="text-lg">No cashier users configured</p>
-                    <p className="text-sm">Click "Add User" to create your first cashier login</p>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Menu & Pricing Tab */}
-            {activeAdminTab === 'menu' && (
-              <div>
-                <h2 className="text-2xl font-bold mb-2">Menu &amp; Pricing</h2>
-                <p className="text-sm text-gray-600 mb-6">
-                  Edit item names, prices, descriptions, or hide items from the kiosk. Changes sync to all kiosks via Supabase.
-                </p>
-
-                <div className="space-y-6">
-                  {categories.map((cat) => (
-                    <div key={cat.id} className="border rounded-lg p-4">
-                      <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
-                        <span className="text-xl">{cat.icon}</span>
-                        {cat.name}
-                      </h3>
-
-                      <div className="space-y-3">
-                        {(menuData[cat.id] || []).map((item) => {
-                          const overrides = adminConfig.menuOverrides || {};
-                          const ov = overrides[item.id] || {};
-
-                          const effectivePrice =
-                            ov.price !== undefined ? ov.price : item.price;
-
-                          const effectiveWithSeasoning =
-                            item.withSeasoning !== undefined
-                              ? ov.withSeasoning !== undefined
-                                ? ov.withSeasoning
-                                : item.withSeasoning
-                              : undefined;
-
-                          const enabled = ov.enabled === false ? false : true;
-
-                          return (
-                            <div
-                              key={item.id}
-                              className="bg-gray-50 p-3 rounded-lg border flex flex-col md:flex-row md:items-center md:justify-between gap-3"
-                            >
-                              <div className="w-full md:w-3/4">
-                                <div className="flex items-center gap-2 mb-2">
-                                  <span className="text-2xl">{item.image}</span>
-                                  <div>
-                                    <div className="font-semibold">
-                                      {ov.name !== undefined && ov.name.trim() !== ''
-                                        ? ov.name
-                                        : item.name}
-                                    </div>
-                                    <div className="text-xs text-gray-500">
-                                      ID: {item.id} • Category: {cat.name}
-                                    </div>
-                                  </div>
-                                </div>
-
-                                <div className="grid gap-2 md:grid-cols-2">
-                                  <div>
-                                    <label className="block text-xs font-medium mb-1">
-                                      Display Name
-                                    </label>
-                                    <input
-                                      type="text"
-                                      value={ov.name !== undefined ? ov.name : item.name}
-                                      onChange={(e) =>
-                                        updateMenuItemOverride(item.id, {
-                                          name: e.target.value
-                                        })
-                                      }
-                                      className="w-full p-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500"
-                                    />
-                                  </div>
-
-                                  <div>
-                                    <label className="block text-xs font-medium mb-1">
-                                      Price (PKR)
-                                    </label>
-                                    <input
-                                      type="number"
-                                      min="0"
-                                      value={effectivePrice}
-                                      onChange={(e) =>
-                                        updateMenuItemOverride(item.id, {
-                                          price: parseInt(e.target.value) || 0
-                                        })
-                                      }
-                                      className="w-full p-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500"
-                                    />
-                                  </div>
-
-                                  {effectiveWithSeasoning !== undefined && (
-                                    <div>
-                                      <label className="block text-xs font-medium mb-1">
-                                        With Seasoning Price (PKR)
-                                      </label>
-                                      <input
-                                        type="number"
-                                        min="0"
-                                        value={effectiveWithSeasoning}
-                                        onChange={(e) =>
-                                          updateMenuItemOverride(item.id, {
-                                            withSeasoning: parseInt(e.target.value) || 0
-                                          })
-                                        }
-                                        className="w-full p-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500"
-                                      />
-                                    </div>
-                                  )}
-
-                                  <div className="md:col-span-2">
-                                    <label className="block text-xs font-medium mb-1">
-                                      Description
-                                    </label>
-                                    <input
-                                      type="text"
-                                      value={
-                                        ov.description !== undefined
-                                          ? ov.description
-                                          : item.description || ''
-                                      }
-                                      onChange={(e) =>
-                                        updateMenuItemOverride(item.id, {
-                                          description: e.target.value
-                                        })
-                                      }
-                                      className="w-full p-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500"
-                                      placeholder="Optional line under item name"
-                                    />
-                                  </div>
-                                </div>
-                              </div>
-
-                              <div className="flex flex-col gap-2 items-stretch md:items-end md:w-1/4">
-                                <button
-                                  onClick={() =>
-                                    updateMenuItemOverride(item.id, {
-                                      enabled: !enabled
-                                    })
-                                  }
-                                  className={`px-3 py-2 rounded-lg text-sm font-semibold ${
-                                    enabled
-                                      ? 'bg-green-100 text-green-800 border border-green-300'
-                                      : 'bg-gray-200 text-gray-700 border border-gray-300'
-                                  }`}
-                                >
-                                  {enabled ? 'Visible in Menu' : 'Hidden'}
-                                </button>
-
-                                {adminConfig.menuOverrides &&
-                                  adminConfig.menuOverrides[item.id] && (
-                                    <button
-                                      onClick={() => resetMenuItemOverride(item.id)}
-                                      className="px-3 py-2 rounded-lg text-xs font-semibold border border-gray-300 hover:bg-gray-100"
-                                    >
-                                      Reset to Default
-                                    </button>
-                                  )}
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Delivery Charges Tab */}
-            {activeAdminTab === 'delivery' && (
-              <div>
-                <div className="flex justify-between items-center mb-6">
-                  <h2 className="text-2xl font-bold">Delivery Charge Presets</h2>
-                  <button
-                    onClick={addDeliveryPreset}
-                    className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 flex items-center gap-2"
-                  >
-                    <Plus size={20} />
-                    Add Preset
-                  </button>
-                </div>
-
-                <div className="space-y-4">
-                  {adminConfig.deliveryChargesPresets.map((preset, index) => (
-                    <div key={index} className="bg-gray-50 p-4 rounded-lg border-2 border-gray-200">
-                      <div className="grid md:grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-medium mb-2">Label</label>
-                          <input
-                            type="text"
-                            value={preset.label}
-                            onChange={(e) => updateDeliveryPreset(index, 'label', e.target.value)}
-                            className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
-                            placeholder="E.g., Standard Delivery"
-                          />
-                        </div>
-                        <div className="flex gap-2">
-                          <div className="flex-1">
-                            <label className="block text-sm font-medium mb-2">Amount (PKR)</label>
-                            <input
-                              type="number"
-                              value={preset.amount}
-                              onChange={(e) => updateDeliveryPreset(index, 'amount', e.target.value)}
-                              className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
-                              placeholder="0"
-                              min="0"
-                            />
-                          </div>
-                          <div className="flex items-end">
-                            <button
-                              onClick={() => deleteDeliveryPreset(index)}
-                              className="px-3 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600"
-                            >
-                              <Trash2 size={18} />
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Payment Methods Tab */}
-            {activeAdminTab === 'payment' && (
-              <div>
-                <h2 className="text-2xl font-bold mb-6">Payment Method Availability</h2>
-                <div className="space-y-4">
-                  {adminConfig.paymentMethods.map((method) => (
-                    <div key={method.id} className="bg-gray-50 p-4 rounded-lg border-2 border-gray-200 flex justify-between items-center">
-                      <div className="flex items-center gap-4">
-                        <span className="text-3xl">{method.icon}</span>
-                        <div>
-                          <h3 className="font-semibold text-lg">{method.name}</h3>
-                          <p className="text-sm text-gray-600">ID: {method.id}</p>
-                        </div>
-                      </div>
-                      <label className="flex items-center gap-3 cursor-pointer">
-                        <span className="text-sm font-medium">
-                          {method.enabled ? 'Enabled' : 'Disabled'}
-                        </span>
-                        <div className="relative">
-                          <input
-                            type="checkbox"
-                            checked={method.enabled}
-                            onChange={() => togglePaymentMethod(method.id)}
-                            className="sr-only"
-                          />
-                          <div className={`w-14 h-8 rounded-full transition-colors ${
-                            method.enabled ? 'bg-green-500' : 'bg-gray-300'
-                          }`}>
-                            <div className={`absolute top-1 left-1 w-6 h-6 bg-white rounded-full transition-transform ${
-                              method.enabled ? 'transform translate-x-6' : ''
-                            }`}></div>
-                          </div>
-                        </div>
-                      </label>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Success Message */}
-        <div className="bg-green-50 border-2 border-green-200 rounded-lg p-4">
-          <p className="text-green-800 font-semibold">✅ All changes are automatically saved to Supabase</p>
-          <p className="text-sm text-green-700 mt-1">Changes sync across all kiosks in real-time and persist permanently in the cloud database</p>
-        </div>
-      </div>
-    );
-  }
 
   // Cashier Information Step
   if (currentStep === 'cashier') {
@@ -1778,50 +695,16 @@ function App() {
             </div>
             
             <div>
-  <label className="block text-sm font-medium mb-2">Cashier User *</label>
-  <select
-    value={cashierInfo.id}
-    onChange={(e) => {
-      const loginId = e.target.value;
-      const users = adminConfig.users || [];
-
-      const selectedUser = users.find(
-        (u) =>
-          u.loginId &&
-          u.loginId.toLowerCase() === loginId.toLowerCase()
-      );
-
-      setCashierInfo((prev) => ({
-        ...prev,
-        id: loginId,                      // store loginId in cashierInfo.id
-        name: selectedUser?.name || prev.name, // auto-fill name if present
-      }));
-
-      // Optional: auto-set branch from user config
-      if (selectedUser?.branch) {
-        setBranch(selectedUser.branch);
-        saveSession(); // if you want to persist the branch change
-      }
-    }}
-    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-    required
-  >
-    <option value="">Select cashier user</option>
-    {(adminConfig.users || []).map((user) => (
-      <option
-        key={user.loginId}
-        value={user.loginId.toLowerCase()}
-      >
-        {user.name ? `${user.name} (${user.loginId})` : user.loginId}
-      </option>
-    ))}
-  </select>
-  <p className="mt-1 text-xs text-gray-500">
-    Users are managed from the Admin Panel → “Users” tab.
-  </p>
-</div>
-
-
+              <label className="block text-sm font-medium mb-2">Cashier ID *</label>
+              <input
+                type="text"
+                value={cashierInfo.id}
+                onChange={(e) => setCashierInfo({...cashierInfo, id: e.target.value})}
+                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                placeholder="e.g., spider, lupin, wehshi"
+                required
+              />
+            </div>
 
             <div>
               <label className="block text-sm font-medium mb-2">Password *</label>
@@ -1829,7 +712,6 @@ function App() {
                 type="password"
                 value={cashierInfo.password}
                 onChange={(e) => setCashierInfo({...cashierInfo, password: e.target.value})}
-                onKeyPress={(e) => e.key === 'Enter' && handleLogin()}
                 className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                 placeholder="Enter password"
                 required
@@ -1848,14 +730,6 @@ function App() {
             className="w-full mt-6 py-3 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors font-semibold"
           >
             Continue to Customer Details
-          </button>
-
-          <button
-            onClick={() => gotoStep('admin')}
-            className="w-full mt-3 py-3 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors font-semibold flex items-center justify-center gap-2"
-          >
-            <Settings size={20} />
-            Admin Panel
           </button>
         </div>
       </div>
@@ -1924,6 +798,7 @@ function App() {
             </div>
           </div>
 
+          {/* NEW: Branch Dropdown */}
           <div className="mt-4">
             <label className="block text-sm font-medium mb-2">Branch *</label>
             <select
@@ -1933,31 +808,33 @@ function App() {
               required
             >
               <option value="" disabled>Select branch</option>
-              {adminConfig.branches.map(b => (
+              {BRANCHES.map(b => (
                 <option key={b} value={b}>{b}</option>
               ))}
             </select>
           </div>
 
           {orderType === 'delivery' && (
-            <div className="mt-4">
-              <label className="block text-sm font-medium mb-2">Delivery Location *</label>
-              <select
-                value={customerInfo.address}
-                onChange={(e) => setCustomerInfo({ ...customerInfo, address: e.target.value })}
-                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                required
-              >
-                <option value="" disabled>Select location</option>
-                {adminConfig.addresses.map(opt => (
-                  <option key={opt.id} value={opt.value}>{opt.label}</option>
-                ))}
-              </select>
-            </div>
-          )}
+  <div className="mt-4">
+    <label className="block text-sm font-medium mb-2">Delivery Location *</label>
+    <select
+      value={customerInfo.address}
+      onChange={(e) => setCustomerInfo({ ...customerInfo, address: e.target.value })}
+      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+      required
+    >
+      <option value="" disabled>Select location</option>
+      {ADDRESS_OPTIONS.map(opt => (
+        <option key={opt.value} value={opt.value}>{opt.label}</option>
+      ))}
+    </select>
+  </div>
+)}
+
+
 
           <div className="mt-4">
-            <label className="block text-sm font-medium mb-2">Special Instructions</label>
+            <label className="block text-sm font-medium mb-2">Instructions/Manual Address (If EXE Not Working)</label>
             <textarea
               value={customerInfo.instructions}
               onChange={(e) => setCustomerInfo({...customerInfo, instructions: e.target.value})}
@@ -1969,20 +846,43 @@ function App() {
           <div className="mt-6">
             <label className="block text-sm font-medium mb-2">Payment Method</label>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              {adminConfig.paymentMethods.filter(pm => pm.enabled).map(method => (
-                <button
-                  key={method.id}
-                  onClick={() => setPaymentMethod(method.id)}
-                  className={`py-3 rounded-lg border-2 flex items-center justify-center gap-2 ${
-                    paymentMethod === method.id
-                      ? `border-${method.id === 'cash' ? 'green' : method.id === 'credit' ? 'blue' : method.id === 'online' ? 'purple' : 'pink'}-500 bg-${method.id === 'cash' ? 'green' : method.id === 'credit' ? 'blue' : method.id === 'online' ? 'purple' : 'pink'}-50`
-                      : 'border-gray-300'
-                  }`}
-                >
-                  <span className="text-xl">{method.icon}</span>
-                  <span className="text-sm font-medium">{method.name}</span>
-                </button>
-              ))}
+              <button
+                onClick={() => setPaymentMethod('cash')}
+                className={`py-3 rounded-lg border-2 flex items-center justify-center gap-2 ${
+                  paymentMethod === 'cash' ? 'border-green-500 bg-green-50' : 'border-gray-300'
+                }`}
+              >
+                <span className="text-xl">💰</span>
+                <span className="text-sm font-medium">Cash</span>
+              </button>
+              <button
+                onClick={() => setPaymentMethod('credit')}
+                className={`py-3 rounded-lg border-2 flex items-center justify-center gap-2 ${
+                  paymentMethod === 'credit' ? 'border-blue-500 bg-blue-50' : 'border-gray-300'
+                }`}
+              >
+                <span className="text-xl">💳</span>
+                <span className="text-sm font-medium">Credit Card</span>
+              </button>
+              <button
+                onClick={() => setPaymentMethod('online')}
+                className={`py-3 rounded-lg border-2 flex items-center justify-center gap-2 ${
+                  paymentMethod === 'online' ? 'border-purple-500 bg-purple-50' : 'border-gray-300'
+                }`}
+              >
+                <span className="text-xl">📱</span>
+                <span className="text-sm font-medium">Online</span>
+              </button>
+              {/* NEW: Marketing PR Tab */}
+              <button
+                onClick={() => setPaymentMethod('marketing')}
+                className={`py-3 rounded-lg border-2 flex items-center justify-center gap-2 ${
+                  paymentMethod === 'marketing' ? 'border-pink-500 bg-pink-50' : 'border-gray-300'
+                }`}
+              >
+                <span className="text-xl">📣</span>
+                <span className="text-sm font-medium">Marketing PR Tab</span>
+              </button>
             </div>
           </div>
 
@@ -2298,7 +1198,7 @@ function App() {
             >
               Back to Menu
             </button>
-            <button
+                        <button
               onClick={submitOrder}
               disabled={isSubmitting}
               className={`flex-1 py-3 rounded-lg font-semibold text-white transition-colors ${
@@ -2423,11 +1323,10 @@ function App() {
                   {categories.find(c => c.id === activeCategory)?.name}
                 </h2>
                 <div className="grid grid-cols-1 gap-3 sm:gap-4">
-                  {getEffectiveMenuItems(activeCategory).map((item) => (
+                  {menuData[activeCategory]?.map(item => (
                     <MenuItemCard key={item.id} item={item} />
                   ))}
                 </div>
-
               </div>
             </div>
           </div>
