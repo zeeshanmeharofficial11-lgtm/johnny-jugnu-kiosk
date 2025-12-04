@@ -91,11 +91,8 @@ function App() {
   const [selectedSauces, setSelectedSauces] = useState([]);
   const [selectedAddons, setSelectedAddons] = useState([]);
 
-// NEW: sauce dip modal state for wings/nuggets
-const [showDipModal, setShowDipModal] = useState(false);
-const [dipItem, setDipItem] = useState(null);
-const [selectedDip, setSelectedDip] = useState(null);
 
+  
   // Hardcoded credentials (for kiosk/dev only – used as fallback)
   const HARD_CODED_USERS = {
     spider: '9696',
@@ -822,44 +819,11 @@ const [selectedDip, setSelectedDip] = useState(null);
     setSelectedAddons([]);
   };
 
-  // Helper: base function to push an item into the cart
-const addSimpleItemToCart = (item, customizations = {}) => {
-  const cartItem = {
-    ...item,
-    ...customizations,
-    cartId: Date.now() + Math.random(),
-    quantity: 1,
-    finalPrice: customizations.withSeasoning || item.price,
-    remarks: '',
-  };
-
-  setCart((prev) => [...prev, cartItem]);
-};
-
-const openDipModal = (item) => {
-  setDipItem(item);
-  setSelectedDip(null);
-  setShowDipModal(true);
-};
-
-
   const addToCart = (item, customizations = {}) => {
-  // Mains still go through the full customization modal (2 sauces + addons)
-  if (item.category === 'mains') {
-    openCustomizationModal(item);
-    return;
-  }
-
-  // NEW: Wings & Nuggets must go through the sauce dip modal
-  if (item.category === 'wings' || item.category === 'nuggets') {
-    openDipModal(item);
-    return;
-  }
-
-  // Everything else: add directly
-  addSimpleItemToCart(item, customizations);
-};
-
+    if (item.category === 'mains') {
+      openCustomizationModal(item);
+      return;
+    }
 
     const cartItem = {
       ...item,
@@ -1178,8 +1142,6 @@ const openDipModal = (item) => {
       </div>
     );
   };
-
-  
 
   // Loading screen while admin config loads
   if (adminConfigLoading) {
