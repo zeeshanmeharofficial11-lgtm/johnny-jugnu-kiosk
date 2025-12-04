@@ -695,6 +695,7 @@ const ADDRESS_OPTIONS = [
             </div>
             
             <div>
+<<<<<<< HEAD
               <label className="block text-sm font-medium mb-2">Cashier ID *</label>
               <input
                 type="text"
@@ -705,6 +706,14 @@ const ADDRESS_OPTIONS = [
                 required
               />
             </div>
+=======
+  <label className="block text-sm font-medium mb-2">Cashier User *</label>
+  <select
+    value={cashierInfo.id}
+    onChange={(e) => {
+      const loginId = e.target.value;
+      const users = adminConfig.users || [];
+>>>>>>> e91c3aa44718bf497beb1bb473f2de96f6deaac0
 
             <div>
               <label className="block text-sm font-medium mb-2">Password *</label>
