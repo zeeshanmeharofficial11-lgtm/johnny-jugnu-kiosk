@@ -32,22 +32,12 @@ function formatPayment(pm) {
   return pm || "—";
 }
 
-// 🕒 Pakistan time helpers
-const PK_TZ = "Asia/Karachi";
-
-// ✅ Do NOT append "Z" — just trust what Supabase sends
-function toPKDate(dateLike) {
-  if (!dateLike) return null;
-  const d = dateLike instanceof Date ? dateLike : new Date(dateLike);
-  if (Number.isNaN(d.getTime())) return null;
-  return d;
-}
-
-function formatPKTime(dateLike) {
-  const d = toPKDate(dateLike);
-  if (!d) return "—";
-  return d.toLocaleTimeString("en-PK", {
-    timeZone: PK_TZ,
+// 🕒 Local time helpers (use browser timezone – your laptop is in PKT)
+function formatOrderTime(d) {
+  if (!d) return "";
+  const date = new Date(d);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toLocaleTimeString("en-PK", {
     hour: "2-digit",
     minute: "2-digit",
     second: "2-digit",
@@ -55,11 +45,11 @@ function formatPKTime(dateLike) {
   });
 }
 
-function formatPKDateTime(dateLike) {
-  const d = toPKDate(dateLike);
-  if (!d) return "—";
-  return d.toLocaleString("en-PK", {
-    timeZone: PK_TZ,
+function formatOrderDateTime(d) {
+  if (!d) return "";
+  const date = new Date(d);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toLocaleString("en-PK", {
     year: "numeric",
     month: "short",
     day: "2-digit",
@@ -203,7 +193,9 @@ function Kitchen() {
             if (["Completed", "Cancelled"].includes(payload.new?.status ?? "")) {
               return prev.filter((o) => o.id !== payload.new.id);
             }
-            return prev.map((o) => (o.id === payload.new.id ? payload.new : o));
+            return prev.map((o) =>
+              o.id === payload.new.id ? payload.new : o
+            );
           });
         }
       )
@@ -222,7 +214,7 @@ function Kitchen() {
       )
       .subscribe();
 
-    return () => {
+  return () => {
       console.log("🧹 Cleaning up Realtime for branch:", selectedBranch);
       supabase.removeChannel(channel);
     };
@@ -309,7 +301,7 @@ function Kitchen() {
             🍔 KITCHEN DISPLAY
           </h1>
           <p className="text-xs sm:text-sm opacity-80">
-            Last updated: {formatPKDateTime(lastUpdate)}
+            Last updated: {formatOrderDateTime(lastUpdate)}
           </p>
         </div>
         <div className="flex items-center gap-2 justify-center sm:justify-end">
@@ -383,10 +375,7 @@ function Kitchen() {
                     #{order.order_number}
                   </h2>
                   <p className="text-center text-sm font-semibold opacity-90">
-                    Punched at (PKT): {formatPKTime(order.created_at)}
-                  </p>
-                  <p className="text-center text-[11px] opacity-80">
-                    {formatPKDateTime(order.created_at)}
+                    {formatOrderTime(order.created_at)}
                   </p>
                   <p className="text-center text-xs opacity-90 mt-1">
                     🏷 Branch:{" "}
