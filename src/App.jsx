@@ -1115,7 +1115,7 @@ function App() {
                 type="password"
                 value={adminPassword}
                 onChange={(e) => setAdminPassword(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && handleAdminLogin()}
+                onKeyDown={(e) => e.key === 'Enter' && handleAdminLogin()}
                 className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                 placeholder="Enter admin password"
                 required
@@ -1778,51 +1778,48 @@ function App() {
             </div>
             
             <div>
-<div>
-  <label className="block text-sm font-medium mb-2">Cashier User *</label>
-  <select
-    value={cashierInfo.id}
-    onChange={(e) => {
-      const loginId = e.target.value;
-      const users = adminConfig.users || [];
+              <label className="block text-sm font-medium mb-2">Cashier User *</label>
+              <select
+                value={cashierInfo.id}
+                onChange={(e) => {
+                  const loginId = e.target.value;
+                  const users = adminConfig.users || [];
 
-      const selectedUser = users.find(
-        (u) =>
-          u.loginId &&
-          u.loginId.toLowerCase() === loginId.toLowerCase()
-      );
+                  const selectedUser = users.find(
+                    (u) =>
+                      u.loginId &&
+                      u.loginId.toLowerCase() === loginId.toLowerCase()
+                  );
 
-      setCashierInfo((prev) => ({
-        ...prev,
-        id: loginId,                      // store loginId in cashierInfo.id
-        name: selectedUser?.name || prev.name, // auto-fill name if present
-      }));
+                  setCashierInfo((prev) => ({
+                    ...prev,
+                    id: loginId,                      // store loginId in cashierInfo.id
+                    name: selectedUser?.name || prev.name, // auto-fill name if present
+                  }));
 
-      // Optional: auto-set branch from user config
-      if (selectedUser?.branch) {
-        setBranch(selectedUser.branch);
-        saveSession(); // if you want to persist the branch change
-      }
-    }}
-    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-    required
-  >
-    <option value="">Select cashier user</option>
-    {(adminConfig.users || []).map((user) => (
-      <option
-        key={user.loginId}
-        value={user.loginId.toLowerCase()}
-      >
-        {user.name ? `${user.name} (${user.loginId})` : user.loginId}
-      </option>
-    ))}
-  </select>
-  <p className="mt-1 text-xs text-gray-500">
-    Users are managed from the Admin Panel → “Users” tab.
-  </p>
-</div>
-
-
+                  // Optional: auto-set branch from user config
+                  if (selectedUser?.branch) {
+                    setBranch(selectedUser.branch);
+                    saveSession(); // persist the branch change
+                  }
+                }}
+                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                required
+              >
+                <option value="">Select cashier user</option>
+                {(adminConfig.users || []).map((user) => (
+                  <option
+                    key={user.loginId}
+                    value={user.loginId.toLowerCase()}
+                  >
+                    {user.name ? `${user.name} (${user.loginId})` : user.loginId}
+                  </option>
+                ))}
+              </select>
+              <p className="mt-1 text-xs text-gray-500">
+                Users are managed from the Admin Panel → “Users” tab.
+              </p>
+            </div>
 
             <div>
               <label className="block text-sm font-medium mb-2">Password *</label>
@@ -1830,7 +1827,7 @@ function App() {
                 type="password"
                 value={cashierInfo.password}
                 onChange={(e) => setCashierInfo({...cashierInfo, password: e.target.value})}
-                onKeyPress={(e) => e.key === 'Enter' && handleLogin()}
+                onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
                 className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                 placeholder="Enter password"
                 required
@@ -1963,7 +1960,7 @@ function App() {
               value={customerInfo.instructions}
               onChange={(e) => setCustomerInfo({...customerInfo, instructions: e.target.value})}
               className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-              rows="3"
+              rows={3}
             />
           </div>
 
@@ -2156,7 +2153,7 @@ function App() {
           </button>
         </div>
 
-        <style jsx>{`
+        <style>{`
           @media print {
             body { margin: 0; }
             #receipt { box-shadow: none !important; }
@@ -2505,6 +2502,8 @@ function App() {
     );
   } // closes if (currentStep === 'menu')
 
+  // Fallback (should normally never hit)
+  return null;
 } // closes function App
 
 export default App;
