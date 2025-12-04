@@ -91,10 +91,10 @@ function App() {
   const [selectedSauces, setSelectedSauces] = useState([]);
   const [selectedAddons, setSelectedAddons] = useState([]);
 
-  // NEW: Dip selection state (for Wings & Nuggs)
-  const [showDipModal, setShowDipModal] = useState(false);
-  const [dipItem, setDipItem] = useState(null);
-  const [selectedDip, setSelectedDip] = useState(null);
+  // NEW: Sauce modal for Crispy Wings / Nuggs
+  const [showSauceModal, setShowSauceModal] = useState(false);
+  const [pendingSauceItem, setPendingSauceItem] = useState(null); // { item, customizations }
+  const [selectedSingleSauce, setSelectedSingleSauce] = useState(null);
 
   // Hardcoded credentials (for kiosk/dev only – used as fallback)
   const HARD_CODED_USERS = {
@@ -594,6 +594,7 @@ function App() {
     await updateAdminConfig(newConfig);
   };
 
+
   // ====== NEW: User Management Functions (Admin Panel) ======
   const addUser = async () => {
     const loginId = prompt('Enter new cashier login ID (e.g., spider):');
@@ -757,6 +758,13 @@ function App() {
     setShowCustomizationModal(true);
   };
 
+  // NEW: open sauce modal (for Crispy Wings + Nuggs)
+  const openSauceModal = (item, customizations = {}) => {
+    setPendingSauceItem({ item, customizations });
+    setSelectedSingleSauce(null);
+    setShowSauceModal(true);
+  };
+
   const toggleSauce = (sauce) => {
     // Is this sauce already selected?
     const index = selectedSauces.findIndex((s) => s.id === sauce.id);
@@ -820,18 +828,20 @@ function App() {
     setSelectedAddons([]);
   };
 
-  // UPDATED: addToCart now handles Wings & Nuggets sauce modal
   const addToCart = (item, customizations = {}) => {
     if (item.category === 'mains') {
       openCustomizationModal(item);
       return;
     }
 
-    // NEW: For wings & nuggets, force sauce selection via DipModal
-    if (item.category === 'wings' || item.category === 'nuggets') {
-      setDipItem({ ...item, ...customizations });
-      setSelectedDip(null);
-      setShowDipModal(true);
+    // NEW: Wings Sauce + Nuggs Sauce selection
+    // Only for Crispy Wings (id:24) – NOT Rami Wings
+    // And for Nuggs (3/6 pieces) i.e. ids 27 & 28
+    if (
+      (item.category === 'wings' && item.id === 24) || // Crispy Wings only
+      (item.category === 'nuggets' && (item.id === 27 || item.id === 28)) // Nuggs sauce selection
+    ) {
+      openSauceModal(item, customizations);
       return;
     }
 
@@ -896,8 +906,8 @@ function App() {
         totalPrice: item.finalPrice * item.quantity,
         withSeasoning: !!item.withSeasoning,
         category: item.category,
-        sauces: item.sauces ? item.sauces.map(s => s.name) : [],
-        addons: item.addons ? item.addons.map(a => a.name) : [],
+        sauces: item.sauces ? item.sauces.map(s => s.name || s) : [],
+        addons: item.addons ? item.addons.map(a => a.name || a) : [],
         remarks: item.remarks || ''
       })),
       itemsTotal: cart.reduce((t, i) => t + (i.finalPrice * i.quantity), 0),
@@ -1012,7 +1022,7 @@ function App() {
     </div>
   );
 
-  // Customization Modal Component (for mains)
+  // Customization Modal Component (for mains with 2 sauces + addons)
   const CustomizationModal = () => {
     if (!showCustomizationModal || !currentItem) return null;
 
@@ -1152,86 +1162,93 @@ function App() {
     );
   };
 
-  // NEW: Dip Modal Component (for Wings & Nuggs)
-  const DipModal = () => {
-    if (!showDipModal || !dipItem) return null;
+  // NEW: Sauce Selection Modal for Crispy Wings + Nuggs
+  const SauceSelectionModal = () => {
+    if (!showSauceModal || !pendingSauceItem) return null;
+
+    const { item } = pendingSauceItem;
+
+    const handleConfirmSauce = () => {
+      if (!selectedSingleSauce) {
+        alert('Please select a sauce');
+        return;
+      }
+
+      const { item, customizations } = pendingSauceItem;
+
+      const cartItem = {
+        ...item,
+        ...customizations,
+        cartId: Date.now() + Math.random(),
+        quantity: 1,
+        finalPrice: customizations.withSeasoning || item.price,
+        sauces: [selectedSingleSauce], // single sauce
+        remarks: ''
+      };
+
+      setCart((prev) => [...prev, cartItem]);
+      setShowSauceModal(false);
+      setPendingSauceItem(null);
+      setSelectedSingleSauce(null);
+    };
 
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-        <div className="bg-white rounded-lg shadow-2xl max-w-md w-full">
-          <div className="flex justify-between items-center px-4 py-3 border-b">
+        <div className="bg-white rounded-lg shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+          <div className="sticky top-0 bg-gradient-to-r from-orange-500 to-red-500 text-white p-4 flex justify-between items-center">
             <div>
-              <h2 className="text-lg font-bold">
-                Select Sauce for {dipItem.image} {dipItem.name}
+              <h2 className="text-2xl font-bold">
+                {item.image} {item.name}
               </h2>
-              <p className="text-xs text-gray-600">
-                Crispy Wings & Nuggs must have a sauce selected.
+              <p className="text-sm opacity-90">
+                Select a sauce for this {item.category === 'wings' ? 'wings' : 'nuggets'} item
               </p>
             </div>
             <button
               onClick={() => {
-                setShowDipModal(false);
-                setDipItem(null);
-                setSelectedDip(null);
+                setShowSauceModal(false);
+                setPendingSauceItem(null);
+                setSelectedSingleSauce(null);
               }}
-              className="p-1 rounded-full hover:bg-gray-100"
+              className="text-white hover:bg-white hover:bg-opacity-20 rounded-full p-2"
             >
-              <X size={18} />
+              <X size={24} />
             </button>
           </div>
 
-          <div className="p-4">
-            <div className="grid grid-cols-2 gap-3 mb-5">
+          <div className="p-6">
+            <h3 className="text-lg font-bold mb-3">Choose 1 Sauce</h3>
+            <div className="grid grid-cols-2 gap-3">
               {availableSauces.map((sauce) => {
-                const isSelected = selectedDip && selectedDip.id === sauce.id;
+                const isSelected = selectedSingleSauce && selectedSingleSauce.id === sauce.id;
                 return (
                   <button
                     key={sauce.id}
-                    type="button"
-                    onClick={() => setSelectedDip(sauce)}
-                    className={`p-3 rounded-lg border-2 transition-all ${
+                    onClick={() => setSelectedSingleSauce(sauce)}
+                    className={`p-3 rounded-lg border-2 transition-all flex flex-col items-center ${
                       isSelected
-                        ? 'border-blue-500 bg-blue-50 shadow'
-                        : 'border-gray-300 hover:border-blue-300'
+                        ? 'border-orange-500 bg-orange-50 shadow-md'
+                        : 'border-gray-300 hover:border-orange-300'
                     }`}
                   >
-                    <div className="text-2xl mb-1">{sauce.image}</div>
+                    <div className="text-3xl mb-1">{sauce.image}</div>
                     <div className="text-sm font-semibold">{sauce.name}</div>
+                    {isSelected && (
+                      <span className="mt-1 text-xs font-black bg-orange-600 text-white px-2 py-0.5 rounded-full">
+                        Selected
+                      </span>
+                    )}
                   </button>
                 );
               })}
             </div>
 
             <button
-              type="button"
-              disabled={!selectedDip}
-              onClick={() => {
-                if (!selectedDip) return;
-                const baseItem = dipItem;
-
-                const cartItem = {
-                  ...baseItem,
-                  cartId: Date.now() + Math.random(),
-                  quantity: 1,
-                  finalPrice: baseItem.withSeasoning || baseItem.price,
-                  sauces: [selectedDip],
-                  remarks: ''
-                };
-
-                setCart((prev) => [...prev, cartItem]);
-                setShowDipModal(false);
-                setDipItem(null);
-                setSelectedDip(null);
-              }}
-              className={`w-full py-3 rounded-lg font-semibold text-white ${
-                selectedDip
-                  ? 'bg-blue-600 hover:bg-blue-700'
-                  : 'bg-gray-400 cursor-not-allowed'
-              }`}
+              onClick={handleConfirmSauce}
+              disabled={!selectedSingleSauce}
+              className="mt-6 w-full bg-orange-500 text-white py-3 rounded-lg font-bold text-lg hover:bg-orange-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
             >
-              {selectedDip
-                ? `Add with ${selectedDip.name}`
-                : 'Select a sauce to continue'}
+              {selectedSingleSauce ? 'Add to Cart' : 'Please select a sauce'}
             </button>
           </div>
         </div>
@@ -2383,6 +2400,11 @@ function App() {
                       <span className="font-medium text-base">{item.name}</span>
                       {item.withSeasoning && <span className="text-sm text-green-600 ml-2 bg-green-100 px-2 py-1 rounded">(With Seasoning)</span>}
                       <span className="text-sm text-gray-600 ml-2 bg-blue-100 px-2 py-1 rounded">x{item.quantity}</span>
+                      {item.sauces && item.sauces.length > 0 && (
+                        <div className="mt-1 text-xs text-blue-700">
+                          Sauces: {item.sauces.map((s) => (typeof s === 'string' ? s : s.name)).join(', ')}
+                        </div>
+                      )}
                     </div>
                     <span className="font-semibold text-lg">PKR {item.finalPrice * item.quantity}</span>
                   </div>
@@ -2403,7 +2425,7 @@ function App() {
 
           {/* Delivery Charges */}
           <div className="mb-6 bg-blue-50 p-4 rounded-lg border-2 border-blue-200">
-            <h3 className="text-lg font-semibold mb-4">Delivery Charge Presets</h3>
+            <h3 className="text-lg font-semibold mb-4">Delivery Charges</h3>
             <div className="space-y-3">
               <div className="flex items-center gap-4">
                 <button
@@ -2518,7 +2540,7 @@ function App() {
     return (
       <>
         <CustomizationModal />
-        <DipModal />
+        <SauceSelectionModal />
         <div className="max-w-7xl mx-auto p-4 bg-gray-50 min-h-screen">
           {/* Header */}
           <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
