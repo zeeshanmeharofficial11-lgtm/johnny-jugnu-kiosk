@@ -32,12 +32,19 @@ function formatPayment(pm) {
   return pm || "—";
 }
 
-// 🕒 Local time helpers (use browser timezone – your laptop is in PKT)
-function formatOrderTime(d) {
-  if (!d) return "";
+// 🕒 Time helpers – just subtract 5 hours from the stored time
+function shiftMinus5Hours(d) {
+  if (!d) return null;
   const date = new Date(d);
-  if (Number.isNaN(date.getTime())) return "";
-  return date.toLocaleTimeString("en-PK", {
+  if (Number.isNaN(date.getTime())) return null;
+  date.setHours(date.getHours() - 5);
+  return date;
+}
+
+function formatOrderTime(d) {
+  const shifted = shiftMinus5Hours(d);
+  if (!shifted) return "";
+  return shifted.toLocaleTimeString("en-PK", {
     hour: "2-digit",
     minute: "2-digit",
     second: "2-digit",
@@ -46,10 +53,9 @@ function formatOrderTime(d) {
 }
 
 function formatOrderDateTime(d) {
-  if (!d) return "";
-  const date = new Date(d);
-  if (Number.isNaN(date.getTime())) return "";
-  return date.toLocaleString("en-PK", {
+  const shifted = shiftMinus5Hours(d);
+  if (!shifted) return "";
+  return shifted.toLocaleString("en-PK", {
     year: "numeric",
     month: "short",
     day: "2-digit",
@@ -214,7 +220,7 @@ function Kitchen() {
       )
       .subscribe();
 
-  return () => {
+    return () => {
       console.log("🧹 Cleaning up Realtime for branch:", selectedBranch);
       supabase.removeChannel(channel);
     };
