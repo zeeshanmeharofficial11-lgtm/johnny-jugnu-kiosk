@@ -12,12 +12,20 @@ const SUPABASE_ANON_KEY =
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // 🔖 Branch tabs
-const BRANCHES = ["Phase 6", "Phase 4", "Johar Town", "Bahria Town", "Cloud Kitchen", "Emporium"];
+const BRANCHES = [
+  "Phase 6",
+  "Phase 4",
+  "Johar Town",
+  "Bahria Town",
+  "Cloud Kitchen",
+  "Emporium",
+];
 
 // 🔤 Payment label formatter
 function formatPayment(pm) {
   const val = String(pm || "").toLowerCase();
-  if (val === "marketing" || val === "marketing pr tab" || val === "marketing_pr") return "Marketing PR Tab";
+  if (val === "marketing" || val === "marketing pr tab" || val === "marketing_pr")
+    return "Marketing PR Tab";
   if (val === "credit") return "Credit Card";
   if (val === "online") return "Online";
   if (val === "cash") return "Cash";
@@ -26,8 +34,35 @@ function formatPayment(pm) {
 
 // 🕒 Pakistan time helpers
 const PK_TZ = "Asia/Karachi";
-function formatPKTime(d) {
-  return new Date(d).toLocaleTimeString("en-PK", {
+
+/**
+ * Ensure the Supabase timestamp string is interpreted correctly
+ * and then converted to Pakistan time.
+ */
+function toPKDate(dateLike) {
+  if (!dateLike) return null;
+
+  // Already a Date instance
+  if (dateLike instanceof Date) return dateLike;
+
+  let s = String(dateLike);
+
+  // If Supabase returned a string WITHOUT timezone (e.g. "2025-12-04T13:30:00"),
+  // treat it as UTC by appending "Z".
+  const hasTZ = /[zZ]|[+-]\d\d:?\d\d$/.test(s);
+  if (!hasTZ) {
+    s = s + "Z";
+  }
+
+  const d = new Date(s);
+  if (Number.isNaN(d.getTime())) return null;
+  return d;
+}
+
+function formatPKTime(dateLike) {
+  const d = toPKDate(dateLike);
+  if (!d) return "—";
+  return d.toLocaleTimeString("en-PK", {
     timeZone: PK_TZ,
     hour: "2-digit",
     minute: "2-digit",
@@ -35,8 +70,11 @@ function formatPKTime(d) {
     hour12: true,
   });
 }
-function formatPKDateTime(d) {
-  return new Date(d).toLocaleString("en-PK", {
+
+function formatPKDateTime(dateLike) {
+  const d = toPKDate(dateLike);
+  if (!d) return "—";
+  return d.toLocaleString("en-PK", {
     timeZone: PK_TZ,
     year: "numeric",
     month: "short",
@@ -66,12 +104,16 @@ function Kitchen() {
   const [lastUpdate, setLastUpdate] = useState(new Date());
 
   // 🔐 Simple login
-  const [loggedIn, setLoggedIn] = useState(localStorage.getItem("kitchenLoggedIn") === "true");
+  const [loggedIn, setLoggedIn] = useState(
+    localStorage.getItem("kitchenLoggedIn") === "true"
+  );
   const [loginInfo, setLoginInfo] = useState({ id: "", password: "" });
   const [loginError, setLoginError] = useState("");
 
   // 🏷 Current branch tab (persisted)
-  const [selectedBranch, setSelectedBranch] = useState(localStorage.getItem("kitchenBranch") || BRANCHES[0]);
+  const [selectedBranch, setSelectedBranch] = useState(
+    localStorage.getItem("kitchenBranch") || BRANCHES[0]
+  );
 
   const HARD_CODED_USER = { id: "kitchen", password: "9696" };
 
@@ -119,7 +161,10 @@ function Kitchen() {
 
   // ✅ Update order status
   async function updateOrderStatus(orderId, status) {
-    const { error } = await supabase.from("orders").update({ status }).eq("id", orderId);
+    const { error } = await supabase
+      .from("orders")
+      .update({ status })
+      .eq("id", orderId);
     if (error) {
       console.error("Error updating order:", error);
       alert("Failed to update order status");
@@ -141,20 +186,33 @@ function Kitchen() {
       .channel(`orders-realtime-${selectedBranch}`)
       .on(
         "postgres_changes",
-        { event: "INSERT", schema: "public", table: "orders", filter: `branch=eq.${selectedBranch}` },
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "orders",
+          filter: `branch=eq.${selectedBranch}`,
+        },
         (payload) => {
           console.log("🆕 New order received:", payload.new);
           setOrders((prev) => {
-            if (["Completed", "Cancelled"].includes(payload.new?.status ?? "")) return prev;
+            if (["Completed", "Cancelled"].includes(payload.new?.status ?? ""))
+              return prev;
             return [...prev, payload.new].sort(
-              (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+              (a, b) =>
+                new Date(a.created_at).getTime() -
+                new Date(b.created_at).getTime()
             );
           });
         }
       )
       .on(
         "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "orders", filter: `branch=eq.${selectedBranch}` },
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "orders",
+          filter: `branch=eq.${selectedBranch}`,
+        },
         (payload) => {
           console.log("♻️ Order updated:", payload.new);
           setOrders((prev) => {
@@ -167,7 +225,12 @@ function Kitchen() {
       )
       .on(
         "postgres_changes",
-        { event: "DELETE", schema: "public", table: "orders", filter: `branch=eq.${selectedBranch}` },
+        {
+          event: "DELETE",
+          schema: "public",
+          table: "orders",
+          filter: `branch=eq.${selectedBranch}`,
+        },
         (payload) => {
           console.log("🗑 Order deleted:", payload.old);
           setOrders((prev) => prev.filter((o) => o.id !== payload.old.id));
@@ -205,29 +268,39 @@ function Kitchen() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-900 p-6">
         <div className="bg-white p-8 rounded-xl shadow-2xl w-full max-w-md">
-          <h1 className="text-3xl font-black text-center text-orange-600 mb-6">KITCHEN PANEL LOGIN</h1>
+          <h1 className="text-3xl font-black text-center text-orange-600 mb-6">
+            KITCHEN PANEL LOGIN
+          </h1>
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-semibold mb-2">User ID</label>
               <input
                 type="text"
                 value={loginInfo.id}
-                onChange={(e) => setLoginInfo({ ...loginInfo, id: e.target.value })}
+                onChange={(e) =>
+                  setLoginInfo({ ...loginInfo, id: e.target.value })
+                }
                 className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-orange-500"
                 placeholder="Enter ID (e.g. kitchen)"
               />
             </div>
             <div>
-              <label className="block text-sm font-semibold mb-2">Password</label>
+              <label className="block text-sm font-semibold mb-2">
+                Password
+              </label>
               <input
                 type="password"
                 value={loginInfo.password}
-                onChange={(e) => setLoginInfo({ ...loginInfo, password: e.target.value })}
+                onChange={(e) =>
+                  setLoginInfo({ ...loginInfo, password: e.target.value })
+                }
                 className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-orange-500"
                 placeholder="Enter password"
               />
             </div>
-            {loginError && <p className="text-sm text-red-600 font-semibold">{loginError}</p>}
+            {loginError && (
+              <p className="text-sm text-red-600 font-semibold">{loginError}</p>
+            )}
             <button
               onClick={handleLogin}
               className="w-full bg-orange-500 hover:bg-orange-600 text-white py-3 rounded-lg font-bold mt-4 transition-colors"
@@ -248,7 +321,9 @@ function Kitchen() {
       {/* Header */}
       <div className="bg-gradient-to-r from-orange-500 to-red-500 rounded-lg shadow-xl p-4 sm:p-6 mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div className="text-white text-center sm:text-left">
-          <h1 className="text-2xl sm:text-4xl font-black mb-1">🍔 KITCHEN DISPLAY</h1>
+          <h1 className="text-2xl sm:text-4xl font-black mb-1">
+            🍔 KITCHEN DISPLAY
+          </h1>
           <p className="text-xs sm:text-sm opacity-80">
             Last updated: {formatPKDateTime(lastUpdate)}
           </p>
@@ -280,7 +355,9 @@ function Kitchen() {
                 key={b}
                 onClick={() => handleBranchChange(b)}
                 className={`px-4 py-2 rounded-full text-sm font-bold transition-all whitespace-nowrap ${
-                  isActive ? "bg-orange-500 text-white shadow" : "bg-white text-gray-800 hover:bg-gray-100"
+                  isActive
+                    ? "bg-orange-500 text-white shadow"
+                    : "bg-white text-gray-800 hover:bg-gray-100"
                 }`}
               >
                 {b}
@@ -318,25 +395,39 @@ function Kitchen() {
               >
                 {/* Header */}
                 <div className="bg-gradient-to-r from-orange-500 to-red-500 text-white rounded-lg p-3 mb-3">
-                  <h2 className="text-2xl font-black text-center">#{order.order_number}</h2>
+                  <h2 className="text-2xl font-black text-center">
+                    #{order.order_number}
+                  </h2>
                   <p className="text-center text-sm font-semibold opacity-90">
-                    {formatPKTime(order.created_at)}
+                    Punched at (PKT): {formatPKTime(order.created_at)}
+                  </p>
+                  <p className="text-center text-[11px] opacity-80">
+                    {formatPKDateTime(order.created_at)}
                   </p>
                   <p className="text-center text-xs opacity-90 mt-1">
-                    🏷 Branch: <span className="font-bold">{order.branch}</span>
+                    🏷 Branch:{" "}
+                    <span className="font-bold">{order.branch}</span>
                   </p>
                 </div>
 
                 {/* Customer Info */}
                 <div className="bg-blue-50 rounded-lg p-3 mb-3">
-                  <p className="text-gray-800 text-sm font-bold mb-1">👤 {order.customer_name}</p>
-                  <p className="text-gray-700 text-xs">📱 {order.customer_phone}</p>
-                  <p className="text-gray-700 text-xs mt-1 break-words">📍 {address}</p>
+                  <p className="text-gray-800 text-sm font-bold mb-1">
+                    👤 {order.customer_name}
+                  </p>
+                  <p className="text-gray-700 text-xs">
+                    📱 {order.customer_phone}
+                  </p>
+                  <p className="text-gray-700 text-xs mt-1 break-words">
+                    📍 {address}
+                  </p>
 
                   {/* 📝 Customer Instructions */}
                   {instructions && (
                     <div className="mt-2 bg-white border border-blue-200 rounded p-2">
-                      <p className="text-xs font-bold text-gray-700">📝 Instructions:</p>
+                      <p className="text-xs font-bold text-gray-700">
+                        📝 Instructions:
+                      </p>
                       <p className="text-xs text-gray-800 whitespace-pre-line break-words">
                         {instructions}
                       </p>
@@ -346,10 +437,14 @@ function Kitchen() {
                   <div className="flex gap-2 mt-2">
                     <span
                       className={`px-2 py-1 rounded text-xs font-bold ${
-                        order.order_type === "delivery" ? "bg-purple-500 text-white" : "bg-green-500 text-white"
+                        order.order_type === "delivery"
+                          ? "bg-purple-500 text-white"
+                          : "bg-green-500 text-white"
                       }`}
                     >
-                      {order.order_type === "delivery" ? "🚗 DELIVERY" : "🏃 PICKUP"}
+                      {order.order_type === "delivery"
+                        ? "🚗 DELIVERY"
+                        : "🏃 PICKUP"}
                     </span>
                     <span className="px-2 py-1 rounded text-xs font-bold bg-gray-200 text-gray-800">
                       💳 {formatPayment(order.payment_method)}
@@ -359,33 +454,45 @@ function Kitchen() {
 
                 {/* Items */}
                 <div className="bg-yellow-50 rounded-lg p-3 mb-3 border-2 border-yellow-200">
-                  <h3 className="font-black text-sm mb-2 text-gray-800">📋 ORDER ITEMS:</h3>
+                  <h3 className="font-black text-sm mb-2 text-gray-800">
+                    📋 ORDER ITEMS:
+                  </h3>
                   <ul className="space-y-2">
                     {items.map((item, i) => {
                       const addons = item.addons || item.add_ons || [];
                       return (
-                        <li key={i} className="border-b border-yellow-200 pb-2 last:border-b-0">
+                        <li
+                          key={i}
+                          className="border-b border-yellow-200 pb-2 last:border-b-0"
+                        >
                           <div className="flex justify-between items-start">
-                            <span className="font-bold text-sm text-gray-800">{item.name}</span>
+                            <span className="font-bold text-sm text-gray-800">
+                              {item.name}
+                            </span>
                             <span className="bg-orange-500 text-white px-2 py-1 rounded-full text-xs font-black">
                               x{item.quantity}
                             </span>
                           </div>
 
-                          {Array.isArray(item.sauces) && item.sauces.length > 0 && (
-                            <div className="mt-1">
-                              <p className="text-xs font-bold text-gray-600">🥫 Sauces:</p>
-                              <ul className="ml-4 list-disc text-xs text-gray-700">
-                                {item.sauces.map((s, idx) => (
-                                  <li key={idx}>{s}</li>
-                                ))}
-                              </ul>
-                            </div>
-                          )}
+                          {Array.isArray(item.sauces) &&
+                            item.sauces.length > 0 && (
+                              <div className="mt-1">
+                                <p className="text-xs font-bold text-gray-600">
+                                  🥫 Sauces:
+                                </p>
+                                <ul className="ml-4 list-disc text-xs text-gray-700">
+                                  {item.sauces.map((s, idx) => (
+                                    <li key={idx}>{s}</li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
 
                           {Array.isArray(addons) && addons.length > 0 && (
                             <div className="mt-1">
-                              <p className="text-xs font-bold text-gray-600">➕ Add-ons:</p>
+                              <p className="text-xs font-bold text-gray-600">
+                                ➕ Add-ons:
+                              </p>
                               <ul className="ml-4 list-disc text-xs text-gray-700">
                                 {addons.map((a, idx) => (
                                   <li key={idx}>{a}</li>
