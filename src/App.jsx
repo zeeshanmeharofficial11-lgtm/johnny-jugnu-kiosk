@@ -1743,43 +1743,61 @@ function App() {
 
             {/* Payment Methods Tab */}
             {activeAdminTab === 'payment' && (
-              <div>
-                <h2 className="text-2xl font-bold mb-6">Payment Method Availability</h2>
-                <div className="space-y-4">
-                  {adminConfig.paymentMethods.map((method) => (
-                    <div key={method.id} className="bg-gray-50 p-4 rounded-lg border-2 border-gray-200 flex justify-between items-center">
-                      <div className="flex items-center gap-4">
-                        <span className="text-3xl">{method.icon}</span>
-                        <div>
-                          <h3 className="font-semibold text-lg">{method.name}</h3>
-                          <p className="text-sm text-gray-600">ID: {method.id}</p>
-                        </div>
-                      </div>
-                      <label className="flex items-center gap-3 cursor-pointer">
-                        <span className="text-sm font-medium">
-                          {method.enabled ? 'Enabled' : 'Disabled'}
-                        </span>
-                        <div className="relative">
-                          <input
-                            type="checkbox"
-                            checked={method.enabled}
-                            onChange={() => togglePaymentMethod(method.id)}
-                            className="sr-only"
-                          />
-                          <div className={`w-14 h-8 rounded-full transition-colors ${
-                            method.enabled ? 'bg-green-500' : 'bg-gray-300'
-                          }`}>
-                            <div className={`absolute top-1 left-1 w-6 h-6 bg-white rounded-full transition-transform ${
-                              method.enabled ? 'transform translate-x-6' : ''
-                            }`}></div>
-                          </div>
-                        </div>
-                      </label>
-                    </div>
-                  ))}
-                </div>
+  <div>
+    <div className="flex justify-between items-center mb-6">
+      <h2 className="text-2xl font-bold">Payment Method Availability</h2>
+      <button
+        onClick={addPaymentMethod}
+        className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 flex items-center gap-2"
+      >
+        <Plus size={20} />
+        Add Payment Method
+      </button>
+    </div>
+
+    <div className="space-y-4">
+      {adminConfig.paymentMethods.map((method) => (
+        <div
+          key={method.id}
+          className="bg-gray-50 p-4 rounded-lg border-2 border-gray-200 flex justify-between items-center"
+        >
+          <div className="flex items-center gap-4">
+            <span className="text-3xl">{method.icon}</span>
+            <div>
+              <h3 className="font-semibold text-lg">{method.name}</h3>
+              <p className="text-sm text-gray-600">ID: {method.id}</p>
+            </div>
+          </div>
+          <label className="flex items-center gap-3 cursor-pointer">
+            <span className="text-sm font-medium">
+              {method.enabled ? 'Enabled' : 'Disabled'}
+            </span>
+            <div className="relative">
+              <input
+                type="checkbox"
+                checked={method.enabled}
+                onChange={() => togglePaymentMethod(method.id)}
+                className="sr-only"
+              />
+              <div
+                className={`w-14 h-8 rounded-full transition-colors ${
+                  method.enabled ? 'bg-green-500' : 'bg-gray-300'
+                }`}
+              >
+                <div
+                  className={`absolute top-1 left-1 w-6 h-6 bg-white rounded-full transition-transform ${
+                    method.enabled ? 'transform translate-x-6' : ''
+                  }`}
+                ></div>
               </div>
-            )}
+            </div>
+          </label>
+        </div>
+      ))}
+    </div>
+  </div>
+)}
+
           </div>
         </div>
 
