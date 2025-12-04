@@ -91,6 +91,11 @@ function App() {
   const [selectedSauces, setSelectedSauces] = useState([]);
   const [selectedAddons, setSelectedAddons] = useState([]);
 
+// NEW: sauce dip modal state for wings/nuggets
+const [showDipModal, setShowDipModal] = useState(false);
+const [dipItem, setDipItem] = useState(null);
+const [selectedDip, setSelectedDip] = useState(null);
+
   // Hardcoded credentials (for kiosk/dev only – used as fallback)
   const HARD_CODED_USERS = {
     spider: '9696',
@@ -817,11 +822,44 @@ function App() {
     setSelectedAddons([]);
   };
 
+  // Helper: base function to push an item into the cart
+const addSimpleItemToCart = (item, customizations = {}) => {
+  const cartItem = {
+    ...item,
+    ...customizations,
+    cartId: Date.now() + Math.random(),
+    quantity: 1,
+    finalPrice: customizations.withSeasoning || item.price,
+    remarks: '',
+  };
+
+  setCart((prev) => [...prev, cartItem]);
+};
+
+const openDipModal = (item) => {
+  setDipItem(item);
+  setSelectedDip(null);
+  setShowDipModal(true);
+};
+
+
   const addToCart = (item, customizations = {}) => {
-    if (item.category === 'mains') {
-      openCustomizationModal(item);
-      return;
-    }
+  // Mains still go through the full customization modal (2 sauces + addons)
+  if (item.category === 'mains') {
+    openCustomizationModal(item);
+    return;
+  }
+
+  // NEW: Wings & Nuggets must go through the sauce dip modal
+  if (item.category === 'wings' || item.category === 'nuggets') {
+    openDipModal(item);
+    return;
+  }
+
+  // Everything else: add directly
+  addSimpleItemToCart(item, customizations);
+};
+
 
     const cartItem = {
       ...item,
@@ -1140,6 +1178,89 @@ function App() {
       </div>
     );
   };
+
+  // Sauce Dip Modal Component for Wings / Nuggets
+const DipModal = () => {
+  if (!showDipModal || !dipItem) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg shadow-2xl max-w-md w-full">
+        {/* Header */}
+        <div className="sticky top-0 bg-gradient-to-r from-blue-500 to-purple-500 text-white p-4 flex justify-between items-center">
+          <div>
+            <h2 className="text-xl font-bold">
+              {dipItem.image} {dipItem.name}
+            </h2>
+            <p className="text-sm opacity-90">Select a sauce dip</p>
+          </div>
+          <button
+            onClick={() => {
+              setShowDipModal(false);
+              setDipItem(null);
+              setSelectedDip(null);
+            }}
+            className="text-white hover:bg-white hover:bg-opacity-20 rounded-full p-2"
+          >
+            <X size={24} />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="p-6">
+          <p className="text-sm mb-4 text-gray-700">
+            Choose one sauce dip for this {dipItem.category === 'wings' ? 'wings order' : 'nuggets order'}.
+          </p>
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-6">
+            {availableSauces.map((sauce) => {
+              const isSelected = selectedDip && selectedDip.id === sauce.id;
+              return (
+                <button
+                  key={sauce.id}
+                  onClick={() => setSelectedDip(sauce)}
+                  className={`p-3 rounded-lg border-2 transition-all ${
+                    isSelected
+                      ? 'border-blue-500 bg-blue-50 shadow-md'
+                      : 'border-gray-300 hover:border-blue-300'
+                  }`}
+                  title={isSelected ? 'Selected' : 'Click to select'}
+                >
+                  <div className="text-3xl mb-1">{sauce.image}</div>
+                  <div className="text-sm font-semibold">{sauce.name}</div>
+                </button>
+              );
+            })}
+          </div>
+
+          <button
+            onClick={() => {
+              if (!selectedDip) {
+                alert('Please select a sauce dip');
+                return;
+              }
+
+              // Store the dip as a sauce on this item for receipts / Supabase
+              addSimpleItemToCart(dipItem, {
+                sauces: [selectedDip],
+                sauceDipName: selectedDip.name, // optional extra field
+              });
+
+              setShowDipModal(false);
+              setDipItem(null);
+              setSelectedDip(null);
+            }}
+            disabled={!selectedDip}
+            className="w-full bg-blue-500 text-white py-3 rounded-lg font-bold text-lg hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed"
+          >
+            {selectedDip ? `Add with ${selectedDip.name}` : 'Select a sauce dip'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 
   // Loading screen while admin config loads
   if (adminConfigLoading) {
