@@ -538,7 +538,7 @@ function App() {
     }
   };
 
-  const togglePaymentMethod = async (methodId) => {
+    const togglePaymentMethod = async (methodId) => {
     const newConfig = {
       ...adminConfig,
       paymentMethods: adminConfig.paymentMethods.map(pm =>
@@ -547,6 +547,48 @@ function App() {
     };
     await updateAdminConfig(newConfig);
   };
+
+  // NEW: Add Payment Method
+  const addPaymentMethod = async () => {
+    const name = prompt('Enter payment method name (e.g., JazzCash, Easypaisa, Bank Transfer):');
+    if (!name || !name.trim()) return;
+
+    // Generate a safe ID from the name
+    let idBase = name.trim().toLowerCase()
+      .replace(/\s+/g, '_')        // spaces -> underscores
+      .replace(/[^a-z0-9_]/g, ''); // remove weird chars
+
+    if (!idBase) {
+      alert('Could not generate a valid ID from this name. Please try a simpler name.');
+      return;
+    }
+
+    // Ensure uniqueness
+    const existingIds = (adminConfig.paymentMethods || []).map(pm => pm.id);
+    let id = idBase;
+    let counter = 2;
+    while (existingIds.includes(id)) {
+      id = `${idBase}_${counter}`;
+      counter += 1;
+    }
+
+    const icon = prompt('Enter an emoji/icon for this method (optional):', '💳') || '💳';
+
+    const newMethod = {
+      id,
+      name: name.trim(),
+      icon,
+      enabled: true,
+    };
+
+    const newConfig = {
+      ...adminConfig,
+      paymentMethods: [...(adminConfig.paymentMethods || []), newMethod],
+    };
+
+    await updateAdminConfig(newConfig);
+  };
+
 
   // ====== NEW: User Management Functions (Admin Panel) ======
   const addUser = async () => {
