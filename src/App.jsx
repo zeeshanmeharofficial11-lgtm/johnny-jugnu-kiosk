@@ -1778,7 +1778,6 @@ function App() {
             </div>
             
             <div>
-<div>
   <label className="block text-sm font-medium mb-2">Cashier User *</label>
   <select
     value={cashierInfo.id}
