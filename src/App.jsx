@@ -1778,37 +1778,50 @@ function App() {
             </div>
             
             <div>
+<div>
   <label className="block text-sm font-medium mb-2">Cashier User *</label>
   <select
     value={cashierInfo.id}
     onChange={(e) => {
-      const val = e.target.value;
+      const loginId = e.target.value;
       const users = adminConfig.users || [];
+
       const selectedUser = users.find(
-        (u) => (u.id || '').trim().toLowerCase() === val.trim().toLowerCase()
+        (u) =>
+          u.loginId &&
+          u.loginId.toLowerCase() === loginId.toLowerCase()
       );
 
       setCashierInfo((prev) => ({
         ...prev,
-        id: val,
-        // Auto-fill name from config if available, but keep it editable
-        name: selectedUser?.name || prev.name,
+        id: loginId,                      // store loginId in cashierInfo.id
+        name: selectedUser?.name || prev.name, // auto-fill name if present
       }));
+
+      // Optional: auto-set branch from user config
+      if (selectedUser?.branch) {
+        setBranch(selectedUser.branch);
+        saveSession(); // if you want to persist the branch change
+      }
     }}
     className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
     required
   >
     <option value="">Select cashier user</option>
     {(adminConfig.users || []).map((user) => (
-      <option key={user.id || user.name} value={(user.id || '').toLowerCase()}>
-        {user.name ? `${user.name} (${user.id})` : user.id}
+      <option
+        key={user.loginId}
+        value={user.loginId.toLowerCase()}
+      >
+        {user.name ? `${user.name} (${user.loginId})` : user.loginId}
       </option>
     ))}
   </select>
   <p className="mt-1 text-xs text-gray-500">
-    Users are managed from the Admin Panel → “Users &amp; Logins” tab.
+    Users are managed from the Admin Panel → “Users” tab.
   </p>
 </div>
+
 
 
             <div>
