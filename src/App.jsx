@@ -902,21 +902,31 @@ function App() {
   };
 
   const toggleSauce = (sauce) => {
-    // For mains customization: toggle presence, max 2 sauces, no duplicates
-    const index = selectedSauces.findIndex((s) => s.id === sauce.id);
+  const total = selectedSauces.length;
+  const count = sauceCount(sauce.id);
 
-    if (index !== -1) {
-      const next = [...selectedSauces];
-      next.splice(index, 1);
-      setSelectedSauces(next);
-    } else {
-      if (selectedSauces.length >= 2) {
-        alert("You can only select 2 sauces total");
-        return;
+  // If already picked 2 sauces:
+  if (total >= 2) {
+    // Optional UX: if they tap a sauce that is already selected,
+    // remove ONE instance (lets them adjust without using the chips)
+    if (count > 0) {
+      const idx = selectedSauces.findIndex((s) => s.id === sauce.id);
+      if (idx !== -1) {
+        const next = [...selectedSauces];
+        next.splice(idx, 1); // remove one instance
+        setSelectedSauces(next);
       }
-      setSelectedSauces([...selectedSauces, sauce]);
+      return;
     }
-  };
+
+    alert("You can only select 2 sauces total");
+    return;
+  }
+
+  // total < 2 -> always ADD (duplicates allowed)
+  setSelectedSauces((prev) => [...prev, sauce]);
+};
+
 
   const removeSauceAt = (idx) => {
     const next = [...selectedSauces];
