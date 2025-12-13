@@ -1044,6 +1044,19 @@ function App() {
     setOrderNumber(newOrderNumber);
 
     const effectiveAddress = getDisplayAddress(customerInfo);
+    const isValidCustomerName = (name) => {
+  const n = (name || '').trim();
+  // Must start with a letter, and only allow letters/spaces/basic punctuation
+  return /^[A-Za-z][A-Za-z\s.'-]*$/.test(n);
+};
+
+const isValidPhone = (phone) => {
+  const digits = (phone || '').replace(/\D/g, ''); // keep only 0-9
+  // allow 10–15 digits (covers PK + international formats)
+  return digits.length >= 10 && digits.length <= 15;
+};
+
+    
 
     const orderData = {
       orderNumber: newOrderNumber,
@@ -2290,6 +2303,8 @@ function App() {
         (isExeAddress && (!customerInfo.manualAddress || !customerInfo.manualAddress.trim()))
       );
 
+    const customerNameOk = isValidCustomerName(customerInfo.name);
+const customerPhoneOk = isValidPhone(customerInfo.phone);
     return (
       <div className="max-w-4xl mx-auto p-4 bg-gray-50 min-h-screen">
         <div className="bg-white rounded-lg shadow-lg p-6">
@@ -2341,12 +2356,18 @@ function App() {
             <div>
               <label className="block text-sm font-medium mb-2">Phone Number *</label>
               <input
-                type="tel"
-                value={customerInfo.phone}
-                onChange={(e) => setCustomerInfo({...customerInfo, phone: e.target.value})}
-                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                required
-              />
+  type="tel"
+  inputMode="numeric"
+  value={customerInfo.phone}
+  onChange={(e) => setCustomerInfo({ ...customerInfo, phone: e.target.value })}
+  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+  required
+/>
+{customerInfo.phone && !customerPhoneOk && (
+  <p className="mt-1 text-xs text-red-600 font-semibold">
+    Enter a valid phone number (10–15 digits).
+  </p>
+)}
             </div>
           </div>
 
@@ -2439,11 +2460,11 @@ function App() {
             <button
               onClick={() => { saveSession('menu'); gotoStep('menu'); }}
               disabled={
-                !customerInfo.name ||
-                !customerInfo.phone ||
-                !branch ||
-                deliveryIncomplete
-              }
+  !customerNameOk ||
+  !customerPhoneOk ||
+  !branch ||
+  deliveryIncomplete
+}
               className="flex-1 py-3 bg-orange-500 text-white rounded-lg hover:bg-orange-600 disabled:bg-gray-300"
             >
               Continue to Menu
