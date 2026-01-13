@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { createClient } from "@supabase/supabase-js";
 
 // ✅ Supabase connection
@@ -76,6 +76,175 @@ function safeParseJSON(maybeJSON) {
   } catch {
     return [];
   }
+}
+
+// 🧾 Build a printable ticket + trigger Print (user can "Save as PDF")
+function downloadOrderTicket(order) {
+  const items = safeParseJSON(order.items);
+  const address = order.address || order.customer_address || "—";
+  const instructions = (order.customer_instructions || "").trim();
+  const createdStr = formatOrderDateTime(order.created_at);
+
+  const esc = (s) =>
+    String(s ?? "")
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#039;");
+
+  const itemLinesHtml = items
+    .map((it) => {
+      const qty = it.quantity ?? 1;
+      const name = esc(it.name ?? "Item");
+
+      const sauces =
+        Array.isArray(it.sauces) && it.sauces.length ? it.sauces : [];
+
+      const addons =
+        Array.isArray(it.addons) && it.addons.length
+          ? it.addons
+          : Array.isArray(it.add_ons) && it.add_ons.length
+          ? it.add_ons
+          : [];
+
+      const seasoning = it.withSeasoning
+        ? `<div class="subline">✨ WITH SEASONING</div>`
+        : "";
+
+      const remarks = it.remarks?.trim()
+        ? `<div class="warn">⚠️ SPECIAL REQUEST: ${esc(it.remarks)}</div>`
+        : "";
+
+      const saucesHtml = sauces.length
+        ? `<div class="subline"><b>🥫 Sauces:</b> ${esc(
+            sauces.join(", ")
+          )}</div>`
+        : "";
+
+      const addonsHtml = addons.length
+        ? `<div class="subline"><b>➕ Add-ons:</b> ${esc(
+            addons.join(", ")
+          )}</div>`
+        : "";
+
+      return `
+        <div class="item">
+          <div class="row">
+            <div class="left"><b>${name}</b></div>
+            <div class="right">x${esc(qty)}</div>
+          </div>
+          ${saucesHtml}
+          ${addonsHtml}
+          ${seasoning}
+          ${remarks}
+        </div>
+      `;
+    })
+    .join("");
+
+  const html = `
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Ticket #${esc(order.order_number)}</title>
+  <style>
+    body { margin: 0; font-family: Arial, sans-serif; color: #111; }
+    .wrap { width: 320px; padding: 14px; }
+    .center { text-align: center; }
+    .h1 { font-size: 20px; font-weight: 800; margin: 0; }
+    .muted { opacity: .75; font-size: 12px; margin-top: 4px; }
+    .divider { border-top: 1px dashed #333; margin: 10px 0; }
+    .row { display: flex; justify-content: space-between; gap: 10px; }
+    .left { flex: 1; }
+    .right { white-space: nowrap; font-weight: 700; }
+    .label { font-size: 12px; font-weight: 700; }
+    .value { font-size: 12px; margin-top: 2px; word-break: break-word; }
+    .item { padding: 8px 0; border-bottom: 1px dashed #ddd; }
+    .item:last-child { border-bottom: 0; }
+    .subline { font-size: 11px; margin-top: 4px; opacity: .9; }
+    .pill { display: inline-block; padding: 4px 8px; border: 1px solid #111; border-radius: 999px; font-size: 11px; font-weight: 700; margin: 6px 4px 0 0; }
+    .total { font-size: 16px; font-weight: 900; }
+    .warn { margin-top: 6px; padding: 6px; border: 1px solid #b91c1c; background: #fee2e2; font-size: 11px; font-weight: 800; }
+    @media print { @page { margin: 8mm; } }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="center">
+      <p class="h1">JOHNNY & JUGNU</p>
+      <div class="muted">KITCHEN TICKET</div>
+      <div style="margin-top:8px; font-size:22px; font-weight:900;">#${esc(
+        order.order_number
+      )}</div>
+      <div class="muted">${esc(createdStr)}</div>
+      <div class="muted">Branch: <b>${esc(order.branch)}</b></div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div>
+      <div class="label">Customer</div>
+      <div class="value">👤 ${esc(order.customer_name || "—")}</div>
+
+      <div class="label" style="margin-top:8px;">Phone</div>
+      <div class="value">📱 ${esc(order.customer_phone || "—")}</div>
+
+      <div class="label" style="margin-top:8px;">Address</div>
+      <div class="value">📍 ${esc(address)}</div>
+
+      ${
+        instructions
+          ? `<div class="label" style="margin-top:8px;">Instructions</div>
+             <div class="value">📝 ${esc(instructions)}</div>`
+          : ""
+      }
+
+      <div style="margin-top:8px;">
+        <span class="pill">${
+          order.order_type === "delivery" ? "🚗 DELIVERY" : "🏃 PICKUP"
+        }</span>
+        <span class="pill">💳 ${esc(formatPayment(order.payment_method))}</span>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="label">Items</div>
+    <div style="margin-top:6px;">
+      ${itemLinesHtml || `<div class="muted">No items</div>`}
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="row">
+      <div class="left"><b>TOTAL</b></div>
+      <div class="right total">PKR ${esc(order.grand_total)}</div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="center muted">
+      Printed from Kitchen Panel
+    </div>
+  </div>
+
+  <script>
+    window.onload = () => { setTimeout(() => window.print(), 150); };
+  </script>
+</body>
+</html>
+  `;
+
+  const w = window.open("", "_blank", "width=420,height=700");
+  if (!w) {
+    alert("Popup blocked. Please allow popups to download/print ticket.");
+    return;
+  }
+  w.document.open();
+  w.document.write(html);
+  w.document.close();
 }
 
 function Kitchen() {
@@ -199,9 +368,7 @@ function Kitchen() {
             if (["Completed", "Cancelled"].includes(payload.new?.status ?? "")) {
               return prev.filter((o) => o.id !== payload.new.id);
             }
-            return prev.map((o) =>
-              o.id === payload.new.id ? payload.new : o
-            );
+            return prev.map((o) => (o.id === payload.new.id ? payload.new : o));
           });
         }
       )
@@ -259,17 +426,13 @@ function Kitchen() {
               <input
                 type="text"
                 value={loginInfo.id}
-                onChange={(e) =>
-                  setLoginInfo({ ...loginInfo, id: e.target.value })
-                }
+                onChange={(e) => setLoginInfo({ ...loginInfo, id: e.target.value })}
                 className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-orange-500"
                 placeholder="Enter ID (e.g. kitchen)"
               />
             </div>
             <div>
-              <label className="block text-sm font-semibold mb-2">
-                Password
-              </label>
+              <label className="block text-sm font-semibold mb-2">Password</label>
               <input
                 type="password"
                 value={loginInfo.password}
@@ -306,6 +469,12 @@ function Kitchen() {
           <h1 className="text-2xl sm:text-4xl font-black mb-1">
             🍔 KITCHEN DISPLAY
           </h1>
+          <p className="text-xs opacity-90 mt-1">
+            Last update:{" "}
+            <span className="font-semibold">
+              {lastUpdate.toLocaleTimeString("en-PK")}
+            </span>
+          </p>
         </div>
         <div className="flex items-center gap-2 justify-center sm:justify-end">
           <button
@@ -370,8 +539,17 @@ function Kitchen() {
             return (
               <div
                 key={order.id}
-                className="bg-white shadow-2xl rounded-lg p-4 border-4 border-orange-400 transform hover:scale-105 transition-transform"
+                className="relative bg-white shadow-2xl rounded-lg p-4 border-4 border-orange-400 transform hover:scale-105 transition-transform"
               >
+                {/* ⬇️ Download ticket */}
+                <button
+                  onClick={() => downloadOrderTicket(order)}
+                  className="absolute top-2 right-2 bg-gray-900 text-white text-xs font-bold px-3 py-2 rounded-lg shadow hover:bg-black transition"
+                  title="Download / Print Ticket"
+                >
+                  ⬇️ Ticket
+                </button>
+
                 {/* Header */}
                 <div className="bg-gradient-to-r from-orange-500 to-red-500 text-white rounded-lg p-3 mb-3">
                   <h2 className="text-2xl font-black text-center">
@@ -381,8 +559,7 @@ function Kitchen() {
                     {formatOrderTime(order.created_at)}
                   </p>
                   <p className="text-center text-xs opacity-90 mt-1">
-                    🏷 Branch:{" "}
-                    <span className="font-bold">{order.branch}</span>
+                    🏷 Branch: <span className="font-bold">{order.branch}</span>
                   </p>
                 </div>
 
@@ -391,9 +568,7 @@ function Kitchen() {
                   <p className="text-gray-800 text-sm font-bold mb-1">
                     👤 {order.customer_name}
                   </p>
-                  <p className="text-gray-700 text-xs">
-                    📱 {order.customer_phone}
-                  </p>
+                  <p className="text-gray-700 text-xs">📱 {order.customer_phone}</p>
                   <p className="text-gray-700 text-xs mt-1 break-words">
                     📍 {address}
                   </p>
@@ -418,9 +593,7 @@ function Kitchen() {
                           : "bg-green-500 text-white"
                       }`}
                     >
-                      {order.order_type === "delivery"
-                        ? "🚗 DELIVERY"
-                        : "🏃 PICKUP"}
+                      {order.order_type === "delivery" ? "🚗 DELIVERY" : "🏃 PICKUP"}
                     </span>
                     <span className="px-2 py-1 rounded text-xs font-bold bg-gray-200 text-gray-800">
                       💳 {formatPayment(order.payment_method)}
@@ -450,19 +623,18 @@ function Kitchen() {
                             </span>
                           </div>
 
-                          {Array.isArray(item.sauces) &&
-                            item.sauces.length > 0 && (
-                              <div className="mt-1">
-                                <p className="text-xs font-bold text-gray-600">
-                                  🥫 Sauces:
-                                </p>
-                                <ul className="ml-4 list-disc text-xs text-gray-700">
-                                  {item.sauces.map((s, idx) => (
-                                    <li key={idx}>{s}</li>
-                                  ))}
-                                </ul>
-                              </div>
-                            )}
+                          {Array.isArray(item.sauces) && item.sauces.length > 0 && (
+                            <div className="mt-1">
+                              <p className="text-xs font-bold text-gray-600">
+                                🥫 Sauces:
+                              </p>
+                              <ul className="ml-4 list-disc text-xs text-gray-700">
+                                {item.sauces.map((s, idx) => (
+                                  <li key={idx}>{s}</li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
 
                           {Array.isArray(addons) && addons.length > 0 && (
                             <div className="mt-1">
