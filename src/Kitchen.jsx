@@ -19,6 +19,7 @@ const BRANCHES = [
   "Bahria Town",
   "Cloud Kitchen",
   "Emporium",
+  "Valancia",
 ];
 
 // 🔤 Payment label formatter
