@@ -19,6 +19,16 @@ const getDisplayAddress = (customer) => {
 
 function App() {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState(null);
+
+  const PAYMENT_ACTIVE_CLASS = {
+    cash:       'border-green-500 bg-green-50',
+    credit:     'border-blue-500 bg-blue-50',
+    online:     'border-purple-500 bg-purple-50',
+    marketing:  'border-pink-500 bg-pink-50',
+  };
+  const getPaymentActiveClass = (id) =>
+    PAYMENT_ACTIVE_CLASS[id] || 'border-orange-500 bg-orange-50';
   const [cart, setCart] = useState([]);
   const [activeCategory, setActiveCategory] = useState('mains');
   const [orderType, setOrderType] = useState('delivery');
@@ -1039,9 +1049,11 @@ function App() {
 
   const submitOrder = async () => {
     setIsSubmitting(true);
+    setSubmitError(null);
 
-    const newOrderNumber = Math.floor(Math.random() * 10000);
-    setOrderNumber(newOrderNumber);
+    // Reuse existing order number on retry so we don't create duplicates
+    const newOrderNumber = orderNumber ?? Math.floor(Math.random() * 10000);
+    if (!orderNumber) setOrderNumber(newOrderNumber);
 
     const effectiveAddress = getDisplayAddress(customerInfo);
 
@@ -1080,7 +1092,8 @@ function App() {
     setIsSubmitting(false);
 
     if (!supabaseSuccess) {
-      alert('Warning: Order not saved to database. Please check your internet connection or contact support.');
+      setSubmitError('Order could not be saved to the database. Check your internet and retry, or proceed to print a manual receipt.');
+      return;
     }
 
     saveSession('receipt');
@@ -2234,7 +2247,7 @@ function App() {
                     name: selectedUser?.name || prev.name,
                   }));
 
-                  if (selectedUser?.branch) {
+                  if (selectedUser?.branch && !branch) {
                     setBranch(selectedUser.branch);
                     saveSession();
                   }
@@ -2418,7 +2431,7 @@ function App() {
                   onClick={() => setPaymentMethod(method.id)}
                   className={`py-3 rounded-lg border-2 flex items-center justify-center gap-2 ${
                     paymentMethod === method.id
-                      ? `border-${method.id === 'cash' ? 'green' : method.id === 'credit' ? 'blue' : method.id === 'online' ? 'purple' : 'pink'}-500 bg-${method.id === 'cash' ? 'green' : method.id === 'credit' ? 'blue' : method.id === 'online' ? 'purple' : 'pink'}-50`
+                      ? getPaymentActiveClass(method.id)
                       : 'border-gray-300'
                   }`}
                 >
@@ -2749,15 +2762,29 @@ function App() {
             </div>
           </div>
 
-          <div className="bg-blue-50 p-4 rounded-lg mb-6">
-            <p className="text-sm text-blue-800 font-medium">
-              📊 This order will be automatically saved to Supabase database (FREE cloud storage) for record keeping and kitchen management.
-            </p>
-          </div>
+          {submitError && (
+            <div className="bg-red-50 border-2 border-red-400 rounded-lg p-4 mb-4">
+              <p className="text-red-800 font-bold mb-3">⚠️ {submitError}</p>
+              <div className="flex gap-3">
+                <button
+                  onClick={submitOrder}
+                  className="flex-1 py-2 bg-red-600 text-white rounded-lg font-bold hover:bg-red-700"
+                >
+                  🔄 Retry
+                </button>
+                <button
+                  onClick={() => { saveSession('receipt'); gotoStep('receipt'); }}
+                  className="flex-1 py-2 bg-gray-500 text-white rounded-lg font-bold hover:bg-gray-600"
+                >
+                  Proceed Anyway
+                </button>
+              </div>
+            </div>
+          )}
 
           <div className="flex gap-4">
             <button
-              onClick={() => { saveSession('menu'); gotoStep('menu'); }}
+              onClick={() => { setSubmitError(null); saveSession('menu'); gotoStep('menu'); }}
               className="flex-1 py-3 bg-gray-500 text-white rounded-lg hover:bg-gray-600"
             >
               Back to Menu
@@ -2773,25 +2800,9 @@ function App() {
             >
               {isSubmitting ? (
                 <div className="flex items-center justify-center gap-2">
-                  <svg
-                    className="animate-spin h-5 w-5 text-white"
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                  >
-                    <circle
-                      className="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                    ></circle>
-                    <path
-                      className="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 018 8h-4l3 3 3-3h-4a8 8 0 01-8 8v-4l-3 3 3 3v-4a8 8 0 01-8-8z"
-                    ></path>
+                  <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                   </svg>
                   Saving...
                 </div>
@@ -2799,7 +2810,6 @@ function App() {
                 'Confirm Order & Save to System'
               )}
             </button>
-
           </div>
         </div>
       </div>
