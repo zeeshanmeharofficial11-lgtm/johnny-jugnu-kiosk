@@ -279,8 +279,29 @@ function Kitchen() {
   const [selectedOrderId, setSelectedOrderId] = useState(null);
 
   const [branches, setBranches] = useState(DEFAULT_BRANCHES);
+  const [branchNewOrderCounts, setBranchNewOrderCounts] = useState({});
 
   const HARD_CODED_USER = { id: "kitchen", password: "9696" };
+
+  const playNewOrderSound = () => {
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      [[880, 0], [1100, 0.15], [880, 0.3]].forEach(([freq, when]) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.type = "sine";
+        osc.frequency.value = freq;
+        gain.gain.setValueAtTime(0.4, ctx.currentTime + when);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + when + 0.3);
+        osc.start(ctx.currentTime + when);
+        osc.stop(ctx.currentTime + when + 0.3);
+      });
+    } catch (e) {
+      console.warn("Audio error:", e);
+    }
+  };
 
   // ✅ Handle login
   const handleLogin = () => {
@@ -446,25 +467,35 @@ function Kitchen() {
     return () => clearInterval(interval);
   }, []);
 
-  // 🎯 NEW: Sound alert on new order
+  // Global realtime: badge counts + sound for every new order across ALL branches
   useEffect(() => {
-    if (!loggedIn || orders.length === 0 || !enableSound) return;
-    
-    const hasPendingOrder = orders.some(o => o.status === "Pending");
-    if (hasPendingOrder) {
-      // Play alert sound
-      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-      const oscillator = audioContext.createOscillator();
-      const gainNode = audioContext.createGain();
-      oscillator.connect(gainNode);
-      gainNode.connect(audioContext.destination);
-      oscillator.frequency.value = 800;
-      gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
-      oscillator.start(audioContext.currentTime);
-      oscillator.stop(audioContext.currentTime + 0.5);
-    }
-  }, [orders.length, enableSound, loggedIn]);
+    if (!loggedIn) return;
+
+    const globalChannel = supabase
+      .channel("orders-global-notifications")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "orders" },
+        (payload) => {
+          const orderBranch = payload.new?.branch;
+          if (!orderBranch) return;
+
+          // Increment badge count for that branch
+          setBranchNewOrderCounts((prev) => ({
+            ...prev,
+            [orderBranch]: (prev[orderBranch] || 0) + 1,
+          }));
+
+          // Play sound if enabled
+          if (enableSound) playNewOrderSound();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(globalChannel);
+    };
+  }, [loggedIn, enableSound]);
 
   // 🎯 NEW: Keyboard shortcuts (1-3 for quick status updates)
   useEffect(() => {
@@ -507,6 +538,8 @@ function Kitchen() {
     setSelectedBranch(branch);
     localStorage.setItem("kitchenBranch", branch);
     fetchOrders(branch);
+    // Clear the notification badge for this branch
+    setBranchNewOrderCounts((prev) => ({ ...prev, [branch]: 0 }));
   };
 
   // 🎯 NEW: Helper functions
@@ -737,17 +770,25 @@ function Kitchen() {
         <div className="flex gap-2 min-w-max">
           {branches.map((b) => {
             const isActive = b === selectedBranch;
+            const notifCount = branchNewOrderCounts[b] || 0;
             return (
               <button
                 key={b}
                 onClick={() => handleBranchChange(b)}
-                className={`px-4 py-2 rounded-full text-sm font-bold transition-all whitespace-nowrap ${
+                className={`relative px-4 py-2 rounded-full text-sm font-bold transition-all whitespace-nowrap ${
                   isActive
                     ? "bg-orange-500 text-white shadow"
+                    : notifCount > 0
+                    ? "bg-white text-gray-800 ring-2 ring-red-500"
                     : "bg-white text-gray-800 hover:bg-gray-100"
                 }`}
               >
                 {b}
+                {notifCount > 0 && (
+                  <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-black rounded-full min-w-[20px] h-5 flex items-center justify-center px-1 animate-pulse">
+                    {notifCount > 9 ? "9+" : notifCount}
+                  </span>
+                )}
               </button>
             );
           })}
