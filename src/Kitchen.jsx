@@ -11,8 +11,8 @@ const SUPABASE_ANON_KEY =
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-// 🔖 Branch tabs
-const BRANCHES = [
+// 🔖 Fallback branch list (used until Supabase config loads)
+const DEFAULT_BRANCHES = [
   "Phase 6",
   "Phase 4",
   "Johar Town",
@@ -261,7 +261,7 @@ function Kitchen() {
 
   // 🏷 Current branch tab (persisted)
   const [selectedBranch, setSelectedBranch] = useState(
-    localStorage.getItem("kitchenBranch") || BRANCHES[0]
+    localStorage.getItem("kitchenBranch") || DEFAULT_BRANCHES[0]
   );
 
   // 🎯 NEW: Enhanced features
@@ -277,6 +277,8 @@ function Kitchen() {
   );
   const [clockTime, setClockTime] = useState(new Date());
   const [selectedOrderId, setSelectedOrderId] = useState(null);
+
+  const [branches, setBranches] = useState(DEFAULT_BRANCHES);
 
   const HARD_CODED_USER = { id: "kitchen", password: "9696" };
 
@@ -416,6 +418,27 @@ function Kitchen() {
     }, 30000);
     return () => clearInterval(interval);
   }, [loggedIn, selectedBranch]);
+
+  // Load branches from Supabase kiosk_config
+  useEffect(() => {
+    if (!loggedIn) return;
+    async function loadBranches() {
+      try {
+        const { data, error } = await supabase
+          .from("kiosk_config")
+          .select("config_data")
+          .order("updated_at", { ascending: false })
+          .limit(1)
+          .single();
+        if (!error && data?.config_data?.branches?.length > 0) {
+          setBranches(data.config_data.branches);
+        }
+      } catch (e) {
+        console.warn("Could not load branches from config:", e);
+      }
+    }
+    loadBranches();
+  }, [loggedIn]);
 
   // 🎯 NEW: Clock ticker
   useEffect(() => {
@@ -712,7 +735,7 @@ function Kitchen() {
       {/* Branch Tabs */}
       <div className="mb-6 overflow-x-auto">
         <div className="flex gap-2 min-w-max">
-          {BRANCHES.map((b) => {
+          {branches.map((b) => {
             const isActive = b === selectedBranch;
             return (
               <button
