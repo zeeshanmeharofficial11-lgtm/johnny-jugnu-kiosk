@@ -185,6 +185,17 @@ function App() {
     loadAdminConfig();
   }, []);
 
+  // Auto-fill delivery charge once admin config loads, or when order type switches
+  useEffect(() => {
+    if (adminConfigLoading) return;
+    if (orderType === 'delivery') {
+      const firstPreset = (adminConfig.deliveryChargesPresets || []).find(p => p.amount > 0);
+      if (firstPreset && deliveryCharges === 0) setDeliveryCharges(firstPreset.amount);
+    } else {
+      setDeliveryCharges(0);
+    }
+  }, [adminConfigLoading, orderType]);
+
   const loadAdminConfig = async () => {
     try {
       setAdminConfigLoading(true);
