@@ -2701,23 +2701,20 @@ function App() {
           <div className="mb-6 bg-blue-50 p-4 rounded-lg border-2 border-blue-200">
             <h3 className="text-lg font-semibold mb-4">Delivery Charges</h3>
             <div className="space-y-3">
-              <div className="flex items-center gap-4">
-                <button
-                  onClick={() => setDeliveryCharges(0)}
-                  className={`px-4 py-2 rounded-lg border-2 font-semibold ${
-                    deliveryCharges === 0 ? 'border-green-500 bg-green-100 text-green-800' : 'border-gray-300'
-                  }`}
-                >
-                  No Delivery Charges (PKR 0)
-                </button>
-                <button
-                  onClick={() => setDeliveryCharges(100)}
-                  className={`px-4 py-2 rounded-lg border-2 font-semibold ${
-                    deliveryCharges === 100 ? 'border-orange-500 bg-orange-100 text-orange-800' : 'border-gray-300'
-                  }`}
-                >
-                  Standard Delivery (PKR 100)
-                </button>
+              <div className="flex flex-wrap items-center gap-3">
+                {(adminConfig.deliveryChargesPresets || []).map((preset, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => setDeliveryCharges(preset.amount)}
+                    className={`px-4 py-2 rounded-lg border-2 font-semibold ${
+                      deliveryCharges === preset.amount
+                        ? 'border-orange-500 bg-orange-100 text-orange-800'
+                        : 'border-gray-300'
+                    }`}
+                  >
+                    {preset.label} (PKR {preset.amount})
+                  </button>
+                ))}
               </div>
               <div className="flex items-center gap-2">
                 <label className="text-sm font-medium">Custom Amount:</label>
