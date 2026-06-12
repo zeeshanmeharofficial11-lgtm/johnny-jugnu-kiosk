@@ -2189,6 +2189,21 @@ function App() {
           
           <div className="space-y-4">
             <div>
+              <label className="block text-sm font-medium mb-2">Branch *</label>
+              <select
+                value={branch}
+                onChange={(e) => { setBranch(e.target.value); saveSession(); }}
+                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                required
+              >
+                <option value="" disabled>Select branch</option>
+                {adminConfig.branches.map(b => (
+                  <option key={b} value={b}>{b}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
               <label className="block text-sm font-medium mb-2">Cashier Name *</label>
               <input
                 type="text"
@@ -2348,21 +2363,6 @@ function App() {
                 required
               />
             </div>
-          </div>
-
-          <div className="mt-4">
-            <label className="block text-sm font-medium mb-2">Branch *</label>
-            <select
-              value={branch}
-              onChange={(e) => { setBranch(e.target.value); saveSession(); }}
-              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-              required
-            >
-              <option value="" disabled>Select branch</option>
-              {adminConfig.branches.map(b => (
-                <option key={b} value={b}>{b}</option>
-              ))}
-            </select>
           </div>
 
           {orderType === 'delivery' && (
