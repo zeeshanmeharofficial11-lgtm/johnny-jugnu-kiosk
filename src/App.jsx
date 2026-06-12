@@ -2334,7 +2334,11 @@ function App() {
             <label className="block text-sm font-medium mb-2">Order Type</label>
             <div className="flex gap-4">
               <button
-                onClick={() => setOrderType('delivery')}
+                onClick={() => {
+                  setOrderType('delivery');
+                  const firstPreset = (adminConfig.deliveryChargesPresets || []).find(p => p.amount > 0);
+                  if (firstPreset) setDeliveryCharges(firstPreset.amount);
+                }}
                 className={`flex-1 py-3 rounded-lg border-2 flex items-center justify-center gap-2 ${
                   orderType === 'delivery' ? 'border-orange-500 bg-orange-50' : 'border-gray-300'
                 }`}
@@ -2343,7 +2347,10 @@ function App() {
                 Delivery
               </button>
               <button
-                onClick={() => setOrderType('pickup')}
+                onClick={() => {
+                  setOrderType('pickup');
+                  setDeliveryCharges(0);
+                }}
                 className={`flex-1 py-3 rounded-lg border-2 flex items-center justify-center gap-2 ${
                   orderType === 'pickup' ? 'border-orange-500 bg-orange-50' : 'border-gray-300'
                 }`}
@@ -2710,38 +2717,40 @@ function App() {
             </div>
           </div>
 
-          {/* Delivery Charges */}
-          <div className="mb-6 bg-blue-50 p-4 rounded-lg border-2 border-blue-200">
-            <h3 className="text-lg font-semibold mb-4">Delivery Charges</h3>
-            <div className="space-y-3">
-              <div className="flex flex-wrap items-center gap-3">
-                {(adminConfig.deliveryChargesPresets || []).map((preset, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => setDeliveryCharges(preset.amount)}
-                    className={`px-4 py-2 rounded-lg border-2 font-semibold ${
-                      deliveryCharges === preset.amount
-                        ? 'border-orange-500 bg-orange-100 text-orange-800'
-                        : 'border-gray-300'
-                    }`}
-                  >
-                    {preset.label} (PKR {preset.amount})
-                  </button>
-                ))}
-              </div>
-              <div className="flex items-center gap-2">
-                <label className="text-sm font-medium">Custom Amount:</label>
-                <input
-                  type="number"
-                  value={deliveryCharges}
-                  onChange={(e) => setDeliveryCharges(parseInt(e.target.value) || 0)}
-                  className="w-24 p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                  min="0"
-                />
-                <span className="text-sm text-gray-600">PKR</span>
+          {/* Delivery Charges — only for delivery orders */}
+          {orderType === 'delivery' && (
+            <div className="mb-6 bg-blue-50 p-4 rounded-lg border-2 border-blue-200">
+              <h3 className="text-lg font-semibold mb-4">Delivery Charges</h3>
+              <div className="space-y-3">
+                <div className="flex flex-wrap items-center gap-3">
+                  {(adminConfig.deliveryChargesPresets || []).map((preset, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => setDeliveryCharges(preset.amount)}
+                      className={`px-4 py-2 rounded-lg border-2 font-semibold ${
+                        deliveryCharges === preset.amount
+                          ? 'border-orange-500 bg-orange-100 text-orange-800'
+                          : 'border-gray-300'
+                      }`}
+                    >
+                      {preset.label} (PKR {preset.amount})
+                    </button>
+                  ))}
+                </div>
+                <div className="flex items-center gap-2">
+                  <label className="text-sm font-medium">Custom Amount:</label>
+                  <input
+                    type="number"
+                    value={deliveryCharges}
+                    onChange={(e) => setDeliveryCharges(parseInt(e.target.value) || 0)}
+                    className="w-24 p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                    min="0"
+                  />
+                  <span className="text-sm text-gray-600">PKR</span>
+                </div>
               </div>
             </div>
-          </div>
+          )}
 
           <div className="border-t pt-4 mb-6">
             <div className="space-y-3 mb-4 bg-gray-100 p-4 rounded-lg">
