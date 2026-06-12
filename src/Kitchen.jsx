@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo, useRef } from "react";
 import { createClient } from "@supabase/supabase-js";
 
 // ✅ Supabase connection
@@ -281,6 +281,13 @@ function Kitchen() {
   const [branches, setBranches] = useState(DEFAULT_BRANCHES);
   const [branchNewOrderCounts, setBranchNewOrderCounts] = useState({});
 
+  // Refs to avoid stale closures in Realtime callbacks
+  const enableSoundRef = useRef(enableSound);
+  useEffect(() => { enableSoundRef.current = enableSound; }, [enableSound]);
+
+  const selectedBranchRef = useRef(selectedBranch);
+  useEffect(() => { selectedBranchRef.current = selectedBranch; }, [selectedBranch]);
+
   const HARD_CODED_USER = { id: "kitchen", password: "9696" };
 
   const playNewOrderSound = () => {
@@ -467,35 +474,39 @@ function Kitchen() {
     return () => clearInterval(interval);
   }, []);
 
-  // Global realtime: badge counts + sound for every new order across ALL branches
+  // Per-branch notification subscriptions: badge counts + sound for every branch
+  // Uses filtered subscriptions (RLS-safe) instead of a single unfiltered global channel
   useEffect(() => {
-    if (!loggedIn) return;
+    if (!loggedIn || branches.length === 0) return;
 
-    const globalChannel = supabase
-      .channel("orders-global-notifications")
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "orders" },
-        (payload) => {
-          const orderBranch = payload.new?.branch;
-          if (!orderBranch) return;
+    const channels = branches.map((b) =>
+      supabase
+        .channel(`notif-${b}`)
+        .on(
+          "postgres_changes",
+          { event: "INSERT", schema: "public", table: "orders", filter: `branch=eq.${b}` },
+          (payload) => {
+            const orderBranch = payload.new?.branch || b;
 
-          // Increment badge count for that branch
-          setBranchNewOrderCounts((prev) => ({
-            ...prev,
-            [orderBranch]: (prev[orderBranch] || 0) + 1,
-          }));
+            // Only badge non-selected branches; the active tab is already visible
+            if (orderBranch !== selectedBranchRef.current) {
+              setBranchNewOrderCounts((prev) => ({
+                ...prev,
+                [orderBranch]: (prev[orderBranch] || 0) + 1,
+              }));
+            }
 
-          // Play sound if enabled
-          if (enableSound) playNewOrderSound();
-        }
-      )
-      .subscribe();
+            // Sound for ALL branches (use ref to avoid stale closure)
+            if (enableSoundRef.current) playNewOrderSound();
+          }
+        )
+        .subscribe()
+    );
 
     return () => {
-      supabase.removeChannel(globalChannel);
+      channels.forEach((c) => supabase.removeChannel(c));
     };
-  }, [loggedIn, enableSound]);
+  }, [loggedIn, branches]);
 
   // 🎯 NEW: Keyboard shortcuts (1-3 for quick status updates)
   useEffect(() => {
