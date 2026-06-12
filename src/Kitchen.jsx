@@ -604,10 +604,12 @@ function Kitchen() {
 
   // Filter orders by search query
   const getFilteredOrders = () => {
-    return orders.filter(o => 
-      o.order_number.toString().includes(searchQuery) ||
-      o.customer_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      o.customer_phone.includes(searchQuery)
+    if (!searchQuery) return orders;
+    const q = searchQuery.toLowerCase();
+    return orders.filter(o =>
+      (o.order_number?.toString() ?? '').includes(searchQuery) ||
+      (o.customer_name ?? '').toLowerCase().includes(q) ||
+      (o.customer_phone ?? '').toString().includes(searchQuery)
     );
   };
 
@@ -766,7 +768,7 @@ function Kitchen() {
       </div>
 
       {/* Branch Tabs */}
-      <div className="mb-6 overflow-x-auto">
+      <div className="mb-6 overflow-x-auto pt-3 pb-1">
         <div className="flex gap-2 min-w-max">
           {branches.map((b) => {
             const isActive = b === selectedBranch;
