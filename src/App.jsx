@@ -358,7 +358,7 @@ function App() {
   const fetchCashierHistory = async (filter = historyFilter) => {
     setHistoryLoading(true);
     try {
-      let url = `${SUPABASE_URL}/rest/v1/orders?cashier_id=eq.${cashierInfo.id}&order=created_at.desc&limit=200`;
+      let url = `${SUPABASE_URL}/rest/v1/orders?cashier_id=eq.${cashierInfo.id}&branch=eq.${encodeURIComponent(branch)}&order=created_at.desc&limit=200`;
       if (filter === 'today') {
         const start = new Date(); start.setHours(0, 0, 0, 0);
         url += `&created_at=gte.${start.toISOString()}`;
@@ -1500,7 +1500,7 @@ function App() {
           <div className="bg-gradient-to-r from-slate-700 to-slate-900 text-white p-4 rounded-t-2xl flex justify-between items-center">
             <div>
               <h2 className="text-xl font-black">📋 My Order History</h2>
-              <p className="text-sm opacity-80">{cashierInfo.name} ({cashierInfo.id})</p>
+              <p className="text-sm opacity-80">{cashierInfo.name} ({cashierInfo.id}) · {branch}</p>
             </div>
             <button onClick={() => setShowOrderHistory(false)} className="hover:bg-white hover:bg-opacity-20 rounded-full p-2">
               <X size={22} />
