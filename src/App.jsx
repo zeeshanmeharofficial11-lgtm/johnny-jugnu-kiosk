@@ -129,6 +129,10 @@ function App() {
   const [baltiTargetCustomizations, setBaltiTargetCustomizations] = useState({});
   const [baltiSauceCounts, setBaltiSauceCounts] = useState({});
 
+  // Patty type modal (Extra Patty → Wehshi Zinger / Fillet)
+  const [showPattyModal, setShowPattyModal] = useState(false);
+  const [pattyTargetItem, setPattyTargetItem] = useState(null);
+
   // Hardcoded credentials (for kiosk/dev only – used as fallback)
   const HARD_CODED_USERS = {
     spider: '9696',
@@ -402,12 +406,12 @@ function App() {
       { id: 6, name: 'Smol Nugg Wrap', price: 730, image: '🌯', category: 'mains', description: 'Smaller nuggets wrap' }
     ],
     sauces: [
-      { id: 7, name: 'Jalapeno', price: 0, image: '🌶️', category: 'sauces' },
-      { id: 8, name: 'Atomic', price: 0, image: '🔥', category: 'sauces' },
-      { id: 9, name: 'Chipotle', price: 0, image: '🌶️', category: 'sauces' },
-      { id: 10, name: 'Garlic', price: 0, image: '🧄', category: 'sauces' },
-      { id: 11, name: 'Greek', price: 0, image: '🫒', category: 'sauces' },
-      { id: 12, name: 'Mushroom', price: 0, image: '🍄', category: 'sauces' }
+      { id: 7, name: 'Free Sauce Jalapeno', price: 0, image: '🌶️', category: 'sauces' },
+      { id: 8, name: 'Free Sauce Atomic', price: 0, image: '🔥', category: 'sauces' },
+      { id: 9, name: 'Free Sauce Chipotle', price: 0, image: '🌶️', category: 'sauces' },
+      { id: 10, name: 'Free Sauce Garlic', price: 0, image: '🧄', category: 'sauces' },
+      { id: 11, name: 'Free Sauce Greek', price: 0, image: '🫒', category: 'sauces' },
+      { id: 12, name: 'Free Sauce Mushroom', price: 0, image: '🍄', category: 'sauces' }
     ],
     extras: [
       { id: 13, name: 'Mushrooms', price: 50, image: '🍄', category: 'extras', description: 'Fresh mushrooms' },
@@ -415,8 +419,10 @@ function App() {
       { id: 15, name: 'Cheese', price: 50, image: '🧀', category: 'extras', description: 'Extra cheese slice' },
       { id: 16, name: 'Pickles', price: 50, image: '🥒', category: 'extras', description: 'Tangy pickles' },
       { id: 17, name: 'Sweet Corn', price: 50, image: '🌽', category: 'extras', description: 'Sweet corn kernels' },
-      { id: 18, name: 'Extra Patty', price: 250, image: '🍖', category: 'extras', description: 'Additional chicken patty' },
-      { id: 19, name: 'Sauce Dip', price: 100, image: '🥄', category: 'extras', description: 'Extra sauce portion (select flavor)' }
+      { id: 18, name: 'Extra Patty', price: 250, image: '🍖', category: 'extras', description: 'Additional chicken patty' }
+    ],
+    sauceDip: [
+      { id: 19, name: 'Sauce Dip', price: 100, image: '🥄', category: 'sauceDip', description: 'Extra sauce portion (select flavor)' }
     ],
     // NEW: Free Add-ons (for zero-priced extras)
     freeAddons: [
@@ -464,8 +470,9 @@ function App() {
 
   const categories = [
     { id: 'mains', name: 'Mains', icon: '🌯' },
-    { id: 'sauces', name: 'Sauces', icon: '🌶️' },
+    { id: 'sauces', name: 'Free Sauces', icon: '🌶️' },
     { id: 'extras', name: 'Extras', icon: '🧀' },
+    { id: 'sauceDip', name: 'Sauce Dip', icon: '🥄' },
     { id: 'freeAddons', name: 'Free Add-ons', icon: '🎁' },
     { id: 'meals', name: 'Meals', icon: '🍟' },
     { id: 'fries', name: 'Fries', icon: '🍟' },
@@ -1006,12 +1013,18 @@ function App() {
       return;
     }
 
-    // Crispy Wings only (id:24), Nuggs (3 & 6) (ids 27, 28),
-    // Extras → Sauce Dip (id:19) → single-sauce modal
+    // Extra Patty → select patty type (Wehshi Zinger / Fillet)
+    if (item.category === 'extras' && item.id === 18) {
+      setPattyTargetItem(item);
+      setShowPattyModal(true);
+      return;
+    }
+
+    // Crispy Wings (id:24), Nuggs 3/6 (ids 27,28), Sauce Dip (id:19) → single-sauce modal
     if (
-      (item.category === 'wings'   && item.id === 24) ||                  // Crispy Wings
-      (item.category === 'nuggets' && (item.id === 27 || item.id === 28)) || // Nuggs (3,6)
-      (item.category === 'extras'  && item.id === 19)                     // Sauce Dip
+      (item.category === 'wings'   && item.id === 24) ||
+      (item.category === 'nuggets' && (item.id === 27 || item.id === 28)) ||
+      (item.category === 'sauceDip' && item.id === 19)
     ) {
       openSauceModal(item, customizations);
       return;
@@ -1398,6 +1411,64 @@ function App() {
             >
               {selectedSingleSauce ? `Add with ${selectedSingleSauce.name}` : 'Select a sauce to continue'}
             </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // Extra Patty type selector modal (Wehshi Zinger / Fillet)
+  const PattyTypeModal = () => {
+    if (!showPattyModal || !pattyTargetItem) return null;
+
+    const pattyTypes = [
+      { id: 'wehshi', name: 'Wehshi Zinger Patty', image: '🍗' },
+      { id: 'fillet', name: 'Fillet Patty', image: '🍖' },
+    ];
+
+    const selectPatty = (pt) => {
+      const cartItem = {
+        ...pattyTargetItem,
+        name: pt.name,
+        cartId: Date.now() + Math.random(),
+        quantity: 1,
+        finalPrice: pattyTargetItem.price,
+        remarks: ''
+      };
+      setCart(prev => [...prev, cartItem]);
+      setShowPattyModal(false);
+      setPattyTargetItem(null);
+    };
+
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full">
+          <div className="bg-gradient-to-r from-orange-500 to-red-500 text-white p-4 flex justify-between items-center rounded-t-2xl">
+            <div>
+              <h2 className="text-2xl font-bold">🍖 Extra Patty</h2>
+              <p className="text-sm opacity-90">Select patty type • PKR 250</p>
+            </div>
+            <button
+              onClick={() => { setShowPattyModal(false); setPattyTargetItem(null); }}
+              className="text-white hover:bg-white hover:bg-opacity-20 rounded-full p-2"
+            >
+              <X size={24} />
+            </button>
+          </div>
+          <div className="p-6">
+            <div className="grid grid-cols-2 gap-4">
+              {pattyTypes.map(pt => (
+                <button
+                  key={pt.id}
+                  onClick={() => selectPatty(pt)}
+                  className="p-5 rounded-xl border-2 border-orange-300 hover:border-orange-500 hover:bg-orange-50 active:scale-95 transition-all flex flex-col items-center gap-2"
+                >
+                  <div className="text-5xl">{pt.image}</div>
+                  <div className="font-bold text-center text-sm leading-tight">{pt.name}</div>
+                  <div className="text-orange-600 font-bold text-base">PKR 250</div>
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       </div>
@@ -2843,6 +2914,7 @@ function App() {
         <CustomizationModal />
         <SauceSelectionModal />
         <BaltiSauceModal />
+        <PattyTypeModal />
         <div className="max-w-7xl mx-auto p-4 bg-gray-50 min-h-screen">
           {/* Header */}
           <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
