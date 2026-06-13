@@ -360,7 +360,15 @@ function App() {
     try {
       let url = `${SUPABASE_URL}/rest/v1/orders?cashier_id=eq.${cashierInfo.id}&branch=eq.${encodeURIComponent(branch)}&order=created_at.desc&limit=200`;
       if (filter === 'today') {
-        const start = new Date(); start.setHours(0, 0, 0, 0);
+        // Business day cutoff = 10:00 AM
+        // Before 10 AM → business day started yesterday at 10 AM
+        // After  10 AM → business day started today    at 10 AM
+        const now = new Date();
+        const start = new Date(now);
+        if (now.getHours() < 10) {
+          start.setDate(start.getDate() - 1); // go back one calendar day
+        }
+        start.setHours(10, 0, 0, 0); // anchor to 10:00:00 AM
         url += `&created_at=gte.${start.toISOString()}`;
       } else if (filter === 'week') {
         const start = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
