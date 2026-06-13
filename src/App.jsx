@@ -422,7 +422,12 @@ function App() {
       { id: 18, name: 'Extra Patty', price: 250, image: '🍖', category: 'extras', description: 'Additional chicken patty' }
     ],
     sauceDip: [
-      { id: 19, name: 'Sauce Dip', price: 100, image: '🥄', category: 'sauceDip', description: 'Extra sauce portion (select flavor)' }
+      { id: 191, name: 'Jalapeno Dip', price: 100, image: '🌶️', category: 'sauceDip', description: 'Extra Jalapeno sauce dip' },
+      { id: 192, name: 'Atomic Dip', price: 100, image: '🔥', category: 'sauceDip', description: 'Extra Atomic sauce dip' },
+      { id: 193, name: 'Chipotle Dip', price: 100, image: '🌶️', category: 'sauceDip', description: 'Extra Chipotle sauce dip' },
+      { id: 194, name: 'Garlic Dip', price: 100, image: '🧄', category: 'sauceDip', description: 'Extra Garlic sauce dip' },
+      { id: 195, name: 'Greek Dip', price: 100, image: '🫒', category: 'sauceDip', description: 'Extra Greek sauce dip' },
+      { id: 196, name: 'Mushroom Dip', price: 100, image: '🍄', category: 'sauceDip', description: 'Extra Mushroom sauce dip' }
     ],
     // NEW: Free Add-ons (for zero-priced extras)
     freeAddons: [
@@ -1020,11 +1025,10 @@ function App() {
       return;
     }
 
-    // Crispy Wings (id:24), Nuggs 3/6 (ids 27,28), Sauce Dip (id:19) → single-sauce modal
+    // Crispy Wings (id:24), Nuggs 3/6 (ids 27,28) → single-sauce modal
     if (
       (item.category === 'wings'   && item.id === 24) ||
-      (item.category === 'nuggets' && (item.id === 27 || item.id === 28)) ||
-      (item.category === 'sauceDip' && item.id === 19)
+      (item.category === 'nuggets' && (item.id === 27 || item.id === 28))
     ) {
       openSauceModal(item, customizations);
       return;
