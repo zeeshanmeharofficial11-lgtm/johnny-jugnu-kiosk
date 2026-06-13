@@ -51,6 +51,12 @@ function App() {
   const [orderNumber, setOrderNumber] = useState(null);
   const [liveOrderStatus, setLiveOrderStatus] = useState('Pending');
 
+  // Cashier order history modal
+  const [showOrderHistory, setShowOrderHistory] = useState(false);
+  const [cashierHistory, setCashierHistory] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyFilter, setHistoryFilter] = useState('today');
+
   // Admin state
   const [adminPassword, setAdminPassword] = useState('');
   const [adminError, setAdminError] = useState('');
@@ -345,6 +351,33 @@ function App() {
   const updateAdminConfig = async (newConfig) => {
     setAdminConfig(newConfig);
     await saveAdminConfigToSupabase(newConfig);
+  };
+
+  // ===================================================
+
+  const fetchCashierHistory = async (filter = historyFilter) => {
+    setHistoryLoading(true);
+    try {
+      let url = `${SUPABASE_URL}/rest/v1/orders?cashier_id=eq.${cashierInfo.id}&order=created_at.desc&limit=200`;
+      if (filter === 'today') {
+        const start = new Date(); start.setHours(0, 0, 0, 0);
+        url += `&created_at=gte.${start.toISOString()}`;
+      } else if (filter === 'week') {
+        const start = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+        url += `&created_at=gte.${start.toISOString()}`;
+      }
+      const res = await fetch(url, {
+        headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` }
+      });
+      if (res.ok) setCashierHistory(await res.json());
+    } catch (_) {}
+    setHistoryLoading(false);
+  };
+
+  const openOrderHistory = () => {
+    setHistoryFilter('today');
+    setShowOrderHistory(true);
+    fetchCashierHistory('today');
   };
 
   // ===================================================
@@ -1443,6 +1476,76 @@ function App() {
             >
               {selectedSingleSauce ? `Add with ${selectedSingleSauce.name}` : 'Select a sauce to continue'}
             </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // Cashier Order History Modal
+  const CashierHistoryModal = () => {
+    if (!showOrderHistory) return null;
+    const statusStyle = {
+      Pending:   'bg-yellow-100 text-yellow-700',
+      Confirmed: 'bg-blue-100 text-blue-700',
+      Completed: 'bg-green-100 text-green-700',
+      Cancelled: 'bg-red-100 text-red-700',
+    };
+    const revenue = cashierHistory.reduce((s, o) => s + (o.grand_total || 0), 0);
+    const completed = cashierHistory.filter(o => o.status === 'Completed').length;
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-3">
+        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[92vh] flex flex-col">
+          {/* Header */}
+          <div className="bg-gradient-to-r from-slate-700 to-slate-900 text-white p-4 rounded-t-2xl flex justify-between items-center">
+            <div>
+              <h2 className="text-xl font-black">📋 My Order History</h2>
+              <p className="text-sm opacity-80">{cashierInfo.name} ({cashierInfo.id})</p>
+            </div>
+            <button onClick={() => setShowOrderHistory(false)} className="hover:bg-white hover:bg-opacity-20 rounded-full p-2">
+              <X size={22} />
+            </button>
+          </div>
+          {/* Filter */}
+          <div className="px-4 py-3 border-b flex gap-2">
+            {[['today','Today'],['week','Last 7 Days'],['all','All Time']].map(([val, label]) => (
+              <button key={val} onClick={() => { setHistoryFilter(val); fetchCashierHistory(val); }}
+                className={`px-4 py-1.5 rounded-full text-sm font-bold transition-colors ${historyFilter === val ? 'bg-slate-800 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+                {label}
+              </button>
+            ))}
+            <div className="ml-auto flex gap-4 text-sm">
+              <span className="font-bold text-gray-700">{cashierHistory.length} orders</span>
+              <span className="font-bold text-green-700">PKR {revenue.toLocaleString()}</span>
+              <span className="font-bold text-blue-700">{completed} done</span>
+            </div>
+          </div>
+          {/* List */}
+          <div className="overflow-y-auto flex-1 p-4 space-y-2">
+            {historyLoading ? (
+              <p className="text-center text-gray-400 py-10">Loading…</p>
+            ) : cashierHistory.length === 0 ? (
+              <p className="text-center text-gray-400 py-10">No orders found</p>
+            ) : cashierHistory.map(o => (
+              <div key={o.id} className="bg-gray-50 rounded-xl border p-3 flex justify-between items-start gap-3">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap mb-1">
+                    <span className="font-mono font-black text-base">#JJ{o.order_number}</span>
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-bold ${statusStyle[o.status] || 'bg-gray-100 text-gray-600'}`}>{o.status}</span>
+                    <span className="text-xs text-gray-400">{new Date(o.created_at).toLocaleString('en-PK',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})}</span>
+                  </div>
+                  <p className="text-sm text-gray-600">{o.customer_name} • {o.customer_phone}</p>
+                  <p className="text-xs text-gray-400 mt-0.5">{o.branch} • {o.order_type} • {o.payment_method}</p>
+                  {Array.isArray(o.items) && (
+                    <p className="text-xs text-gray-500 mt-1 truncate">{o.items.map(i => `${i.name}×${i.quantity}`).join(', ')}</p>
+                  )}
+                </div>
+                <div className="text-right shrink-0">
+                  <p className="font-black text-base text-orange-600">PKR {o.grand_total}</p>
+                  <p className="text-xs text-gray-400">{o.items?.length || 0} items</p>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </div>
@@ -2975,6 +3078,7 @@ function App() {
   if (currentStep === 'menu') {
     return (
       <>
+        <CashierHistoryModal />
         <CustomizationModal />
         <SauceSelectionModal />
         <BaltiSauceModal />
@@ -3027,13 +3131,20 @@ function App() {
                   ))}
                 </div>
                 
-                <div className="mt-4 sm:mt-6 pt-3 sm:pt-4 border-t">
+                <div className="mt-4 sm:mt-6 pt-3 sm:pt-4 border-t space-y-2">
                   <button
                     onClick={() => { saveSession('customer'); gotoStep('customer'); }}
                     className="w-full text-left p-2 sm:p-3 rounded-lg bg-blue-50 hover:bg-blue-100 flex items-center gap-2 sm:gap-3"
                   >
                     <User size={18} />
                     <span className="font-medium text-sm sm:text-base">Edit Customer Info</span>
+                  </button>
+                  <button
+                    onClick={openOrderHistory}
+                    className="w-full text-left p-2 sm:p-3 rounded-lg bg-slate-50 hover:bg-slate-100 flex items-center gap-2 sm:gap-3"
+                  >
+                    <span className="text-lg">📋</span>
+                    <span className="font-medium text-sm sm:text-base">My Order History</span>
                   </button>
                 </div>
 
