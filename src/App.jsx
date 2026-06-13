@@ -1041,6 +1041,9 @@ function App() {
       cartId: Date.now() + Math.random(),
       quantity: 1,
       finalPrice: customizations.withSeasoning || item.price,
+      // Only mark seasoning when +S was explicitly clicked; spread of ...item would
+      // otherwise carry the numeric withSeasoning price and show the badge always.
+      withSeasoning: !!customizations.withSeasoning,
       remarks: ''
     };
     setCart([...cart, cartItem]);
