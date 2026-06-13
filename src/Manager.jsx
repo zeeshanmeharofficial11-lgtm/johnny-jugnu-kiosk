@@ -128,12 +128,13 @@ export default function Manager() {
     const map = {};
     filtered.forEach(o => {
       const n = o.cashier_name || 'Unknown';
-      if (!map[n]) map[n] = { name: n, id: o.cashier_id, orders: 0, revenue: 0, completed: 0, cancelled: 0, delivery: 0, pickup: 0, last: null };
+      if (!map[n]) map[n] = { name: n, id: o.cashier_id, orders: 0, revenue: 0, completed: 0, cancelled: 0, delivery: 0, pickup: 0, deliveryRevenue: 0, pickupRevenue: 0, last: null };
       map[n].orders++;
       map[n].revenue += o.grand_total || 0;
       if (o.status === 'Completed') map[n].completed++;
       const t = (o.order_type || '').toLowerCase();
-      if (t === 'delivery') map[n].delivery++; else map[n].pickup++;
+      if (t === 'delivery') { map[n].delivery++; map[n].deliveryRevenue += o.grand_total || 0; }
+      else                  { map[n].pickup++;   map[n].pickupRevenue   += o.grand_total || 0; }
       if (o.status === 'Cancelled') map[n].cancelled++;
       if (!map[n].last || new Date(o.created_at) > new Date(map[n].last)) map[n].last = o.created_at;
     });
@@ -481,9 +482,26 @@ export default function Manager() {
                         avg PKR {c.orders ? Math.round(c.revenue / c.orders) : 0}
                       </span>
                     </div>
-                    <div className="flex gap-2 text-xs mt-2">
-                      <span className="bg-indigo-100 text-indigo-700 px-2 py-1 rounded font-bold">🛵 {c.delivery} delivery</span>
-                      <span className="bg-teal-100 text-teal-700 px-2 py-1 rounded font-bold">🏃 {c.pickup} pickup</span>
+                    <div className="mt-3 border-t pt-3 space-y-2">
+                      <p className="text-xs font-bold text-gray-500 uppercase tracking-wide">Order Type Breakdown</p>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-2 text-center">
+                          <p className="text-base font-black text-indigo-700">🛵 {c.delivery}</p>
+                          <p className="text-xs text-indigo-500 font-semibold">Delivery</p>
+                          <p className="text-xs text-indigo-400">PKR {c.deliveryRevenue.toLocaleString()}</p>
+                        </div>
+                        <div className="bg-teal-50 border border-teal-200 rounded-lg p-2 text-center">
+                          <p className="text-base font-black text-teal-700">🏃 {c.pickup}</p>
+                          <p className="text-xs text-teal-500 font-semibold">Pickup</p>
+                          <p className="text-xs text-teal-400">PKR {c.pickupRevenue.toLocaleString()}</p>
+                        </div>
+                      </div>
+                      {c.orders > 0 && (
+                        <div className="flex rounded-full overflow-hidden h-2">
+                          <div className="bg-indigo-400 transition-all" style={{ width: `${Math.round((c.delivery / c.orders) * 100)}%` }}></div>
+                          <div className="bg-teal-400 flex-1"></div>
+                        </div>
+                      )}
                     </div>
                     {c.last && (
                       <p className="text-xs text-gray-400 mt-3 pt-3 border-t">Last active: {fmt(c.last)}</p>
