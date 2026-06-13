@@ -106,12 +106,21 @@ export default function Manager() {
   const stats = useMemo(() => {
     const revenue  = filtered.reduce((s, o) => s + (o.grand_total || 0), 0);
     const byStatus = { Pending: 0, Confirmed: 0, Completed: 0, Cancelled: 0 };
-    filtered.forEach(o => { if (byStatus[o.status] !== undefined) byStatus[o.status]++; });
+    const byOrderType = { delivery: 0, pickup: 0 };
+    const revenueByType = { delivery: 0, pickup: 0 };
+    filtered.forEach(o => {
+      if (byStatus[o.status] !== undefined) byStatus[o.status]++;
+      const t = (o.order_type || '').toLowerCase();
+      if (t === 'delivery') { byOrderType.delivery++; revenueByType.delivery += o.grand_total || 0; }
+      else                  { byOrderType.pickup++;   revenueByType.pickup   += o.grand_total || 0; }
+    });
     return {
       total: filtered.length,
       revenue,
       avg: filtered.length ? Math.round(revenue / filtered.length) : 0,
       byStatus,
+      byOrderType,
+      revenueByType,
     };
   }, [filtered]);
 
@@ -119,10 +128,12 @@ export default function Manager() {
     const map = {};
     filtered.forEach(o => {
       const n = o.cashier_name || 'Unknown';
-      if (!map[n]) map[n] = { name: n, id: o.cashier_id, orders: 0, revenue: 0, completed: 0, cancelled: 0, last: null };
+      if (!map[n]) map[n] = { name: n, id: o.cashier_id, orders: 0, revenue: 0, completed: 0, cancelled: 0, delivery: 0, pickup: 0, last: null };
       map[n].orders++;
       map[n].revenue += o.grand_total || 0;
       if (o.status === 'Completed') map[n].completed++;
+      const t = (o.order_type || '').toLowerCase();
+      if (t === 'delivery') map[n].delivery++; else map[n].pickup++;
       if (o.status === 'Cancelled') map[n].cancelled++;
       if (!map[n].last || new Date(o.created_at) > new Date(map[n].last)) map[n].last = o.created_at;
     });
@@ -286,6 +297,26 @@ export default function Manager() {
               ))}
             </div>
 
+            {/* Order Type breakdown */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-5">
+                <div className="flex items-center gap-3 mb-3">
+                  <span className="text-3xl">🛵</span>
+                  <p className="font-black text-lg text-indigo-800">Delivery</p>
+                </div>
+                <p className="text-4xl font-black text-indigo-700">{stats.byOrderType.delivery}</p>
+                <p className="text-sm text-indigo-500 mt-1 font-semibold">PKR {stats.revenueByType.delivery.toLocaleString()}</p>
+              </div>
+              <div className="bg-teal-50 border border-teal-200 rounded-xl p-5">
+                <div className="flex items-center gap-3 mb-3">
+                  <span className="text-3xl">🏃</span>
+                  <p className="font-black text-lg text-teal-800">Pickup</p>
+                </div>
+                <p className="text-4xl font-black text-teal-700">{stats.byOrderType.pickup}</p>
+                <p className="text-sm text-teal-500 mt-1 font-semibold">PKR {stats.revenueByType.pickup.toLocaleString()}</p>
+              </div>
+            </div>
+
             {/* Recent orders feed */}
             <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
               <div className="px-5 py-3 border-b flex justify-between items-center">
@@ -443,12 +474,16 @@ export default function Manager() {
                         <p className="text-xs text-gray-500">Revenue</p>
                       </div>
                     </div>
-                    <div className="flex gap-2 text-xs">
+                    <div className="flex gap-2 text-xs flex-wrap">
                       <span className="bg-green-100 text-green-700 px-2 py-1 rounded font-bold">✓ {c.completed} done</span>
                       <span className="bg-red-100 text-red-700 px-2 py-1 rounded font-bold">✗ {c.cancelled} cancelled</span>
                       <span className="bg-gray-100 text-gray-600 px-2 py-1 rounded font-bold ml-auto">
                         avg PKR {c.orders ? Math.round(c.revenue / c.orders) : 0}
                       </span>
+                    </div>
+                    <div className="flex gap-2 text-xs mt-2">
+                      <span className="bg-indigo-100 text-indigo-700 px-2 py-1 rounded font-bold">🛵 {c.delivery} delivery</span>
+                      <span className="bg-teal-100 text-teal-700 px-2 py-1 rounded font-bold">🏃 {c.pickup} pickup</span>
                     </div>
                     {c.last && (
                       <p className="text-xs text-gray-400 mt-3 pt-3 border-t">Last active: {fmt(c.last)}</p>
