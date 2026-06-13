@@ -49,6 +49,7 @@ function App() {
   const [currentStep, setCurrentStep] = useState('cashier');
   const [deliveryCharges, setDeliveryCharges] = useState(0);
   const [orderNumber, setOrderNumber] = useState(null);
+  const [liveOrderStatus, setLiveOrderStatus] = useState('Pending');
 
   // Admin state
   const [adminPassword, setAdminPassword] = useState('');
@@ -199,6 +200,29 @@ function App() {
       setDeliveryCharges(0);
     }
   }, [adminConfigLoading, orderType]);
+
+  // Live order status polling — runs on the receipt page, resets on new order
+  useEffect(() => {
+    if (currentStep !== 'receipt' || !orderNumber) return;
+    setLiveOrderStatus('Pending');
+
+    const poll = async () => {
+      try {
+        const res = await fetch(
+          `${SUPABASE_URL}/rest/v1/orders?order_number=eq.${orderNumber}&select=status`,
+          { headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` } }
+        );
+        if (res.ok) {
+          const data = await res.json();
+          if (data[0]?.status) setLiveOrderStatus(data[0].status);
+        }
+      } catch (_) { /* silent — next poll will retry */ }
+    };
+
+    poll();
+    const interval = setInterval(poll, 5000);
+    return () => clearInterval(interval);
+  }, [currentStep, orderNumber]);
 
   const loadAdminConfig = async () => {
     try {
@@ -1166,6 +1190,7 @@ function App() {
     setDeliveryCharges(0);
     setActiveCategory('mains');
     setOrderNumber(null);
+    setLiveOrderStatus('Pending');
     setLoginError('');
     saveSession('customer');
     gotoStep('customer');
@@ -2577,6 +2602,38 @@ function App() {
             <p className="text-xl font-black">ORDER #JJ{orderNumber}</p>
           </div>
           <p className="text-sm font-semibold mt-2">{new Date().toLocaleString()}</p>
+        </div>
+
+        {/* Live Kitchen Status Banner */}
+        <div className={`print:hidden mb-5 rounded-xl px-4 py-3 text-center border-2 transition-all ${
+          liveOrderStatus === 'Completed'
+            ? 'bg-green-50 border-green-400'
+            : liveOrderStatus === 'Confirmed'
+            ? 'bg-blue-50 border-blue-400'
+            : liveOrderStatus === 'Cancelled'
+            ? 'bg-red-50 border-red-400'
+            : 'bg-yellow-50 border-yellow-400'
+        }`}>
+          <p className={`text-xs font-bold uppercase mb-1 tracking-wide ${
+            liveOrderStatus === 'Completed' ? 'text-green-700'
+            : liveOrderStatus === 'Confirmed' ? 'text-blue-700'
+            : liveOrderStatus === 'Cancelled' ? 'text-red-700'
+            : 'text-yellow-700'
+          }`}>Kitchen Status</p>
+          <p className={`text-xl font-black ${
+            liveOrderStatus === 'Completed' ? 'text-green-700'
+            : liveOrderStatus === 'Confirmed' ? 'text-blue-700'
+            : liveOrderStatus === 'Cancelled' ? 'text-red-700'
+            : 'text-yellow-700'
+          }`}>
+            {liveOrderStatus === 'Pending' && '⏳ Waiting for Kitchen'}
+            {liveOrderStatus === 'Confirmed' && '👨‍🍳 Being Prepared'}
+            {liveOrderStatus === 'Completed' && '✅ Ready for Pickup!'}
+            {liveOrderStatus === 'Cancelled' && '❌ Order Cancelled'}
+          </p>
+          {liveOrderStatus === 'Pending' && (
+            <p className="text-xs text-yellow-600 mt-1">Updates automatically every 5 seconds</p>
+          )}
         </div>
 
         {/* Staff & Customer Info */}
