@@ -446,9 +446,6 @@ function App() {
     { id: 12, name: 'Mushroom', image: '🍄' }
   ];
 
-  // Sourced from menuData.extras so prices stay in sync with the Extras sidebar tab
-  const availableAddons = menuData.extras;
-
   const menuData = {
     mains: [
       { id: 1, name: 'Tortilla Wrap', price: 1030, image: '🌯', category: 'mains', description: 'Chicken wrap in tortilla' },
@@ -525,6 +522,9 @@ function App() {
       { id: 36, name: 'Sunset', price: 400, image: '🥤', category: 'lemonades' }
     ]
   };
+
+  // Sourced from menuData.extras so Add-ons modal prices stay in sync with Extras tab
+  const availableAddons = menuData.extras;
 
   const categories = [
     { id: 'mains', name: 'Mains', icon: '🌯' },
