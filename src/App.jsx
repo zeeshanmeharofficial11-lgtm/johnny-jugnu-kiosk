@@ -446,15 +446,8 @@ function App() {
     { id: 12, name: 'Mushroom', image: '🍄' }
   ];
 
-  // Available add-ons (paid, used in mains customization)
-  const availableAddons = [
-    { id: 13, name: 'Mushrooms', price: 50, image: '🍄' },
-    { id: 14, name: 'Jalapenos', price: 50, image: '🌶️' },
-    { id: 15, name: 'Cheese', price: 50, image: '🧀' },
-    { id: 16, name: 'Pickles', price: 50, image: '🥒' },
-    { id: 17, name: 'Sweet Corn', price: 50, image: '🌽' },
-    { id: 18, name: 'Extra Patty', price: 250, image: '🍖' }
-  ];
+  // Sourced from menuData.extras so prices stay in sync with the Extras sidebar tab
+  const availableAddons = menuData.extras;
 
   const menuData = {
     mains: [
