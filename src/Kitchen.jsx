@@ -619,8 +619,10 @@ function Kitchen() {
   };
 
   // Live timer: Xm Ys from created_at using current clockTime
+  // created_at is stored as PKT but tagged as UTC, so subtract 5h to align with Date.now()
   const formatLiveTimer = (createdAt) => {
-    const elapsed = Math.max(0, Math.floor((clockTime.getTime() - new Date(createdAt).getTime()) / 1000));
+    const correctedMs = new Date(createdAt).getTime() - (5 * 60 * 60 * 1000);
+    const elapsed = Math.max(0, Math.floor((Date.now() - correctedMs) / 1000));
     if (elapsed < 60) return `${elapsed}s`;
     const m = Math.floor(elapsed / 60);
     const s = elapsed % 60;
@@ -927,10 +929,11 @@ function Kitchen() {
                     <span className={`${fullscreenMode ? "text-sm" : "text-xs"} opacity-90 font-semibold`}>
                       👨‍💼 {order.cashier_name || '—'}
                     </span>
-                    <span className={`font-black px-2 py-1 rounded text-xs ${
-                      order.status === 'Pending'   ? 'bg-white text-red-600 animate-pulse' :
-                      order.status === 'Confirmed' ? 'bg-white text-orange-500 animate-pulse' :
-                                                     'bg-white/20 text-white'
+                    <span className={`font-black px-3 py-1.5 rounded-full shadow-md text-sm border-2 ${
+                      order.status === 'Pending'   ? 'bg-red-600 text-white border-red-300 animate-pulse' :
+                      order.status === 'Confirmed' ? 'bg-blue-600 text-white border-blue-300 animate-pulse' :
+                      order.status === 'Completed' ? 'bg-green-600 text-white border-green-300' :
+                                                     'bg-gray-600 text-white border-gray-400'
                     }`}>
                       ⏱ {formatLiveTimer(order.created_at)}
                     </span>
