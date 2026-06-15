@@ -523,9 +523,6 @@ function App() {
     ]
   };
 
-  // Sourced from menuData.extras so Add-ons modal prices stay in sync with Extras tab
-  const availableAddons = menuData.extras;
-
   const categories = [
     { id: 'mains', name: 'Mains', icon: '🌯' },
     { id: 'sauces', name: 'Free Sauces', icon: '🌶️' },
@@ -1358,7 +1355,7 @@ function App() {
             <div className="mb-6">
               <h3 className="text-lg font-bold mb-3">Add-ons (Optional)</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {availableAddons.map(addon => (
+                {getEffectiveMenuItems('extras').map(addon => (
                   <button
                     key={addon.id}
                     onClick={() => toggleAddon(addon)}
