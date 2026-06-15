@@ -272,6 +272,8 @@ function Kitchen() {
     localStorage.getItem("kitchenGroupByCategory") === "true"
   );
   const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState([]);
+  const [searchLoading, setSearchLoading] = useState(false);
   const [enableSound, setEnableSound] = useState(
     localStorage.getItem("kitchenSound") !== "false"
   );
@@ -474,6 +476,34 @@ function Kitchen() {
     return () => clearInterval(interval);
   }, []);
 
+  // Search across ALL statuses when query is typed
+  useEffect(() => {
+    if (!searchQuery.trim() || !selectedBranch) {
+      setSearchResults([]);
+      return;
+    }
+    setSearchLoading(true);
+    const timer = setTimeout(async () => {
+      const q = searchQuery.trim();
+      const { data } = await supabase
+        .from("orders")
+        .select("*")
+        .eq("branch", selectedBranch)
+        .or(`customer_name.ilike.%${q}%,customer_phone.ilike.%${q}%`)
+        .order("created_at", { ascending: false })
+        .limit(50);
+      // also match order_number manually (numeric field)
+      const numberMatch = (data || []).filter(o =>
+        (o.order_number?.toString() ?? "").includes(q) ||
+        (o.customer_name ?? "").toLowerCase().includes(q.toLowerCase()) ||
+        (o.customer_phone ?? "").toString().includes(q)
+      );
+      setSearchResults(numberMatch);
+      setSearchLoading(false);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery, selectedBranch]);
+
   // Per-branch notification subscriptions: badge counts + sound for every branch
   // Uses filtered subscriptions (RLS-safe) instead of a single unfiltered global channel
   useEffect(() => {
@@ -622,15 +652,10 @@ function Kitchen() {
     return grouped;
   };
 
-  // Filter orders by search query
+  // Filter orders by search query (searches all statuses via searchResults)
   const getFilteredOrders = () => {
-    if (!searchQuery) return orders;
-    const q = searchQuery.toLowerCase();
-    return orders.filter(o =>
-      (o.order_number?.toString() ?? '').includes(searchQuery) ||
-      (o.customer_name ?? '').toLowerCase().includes(q) ||
-      (o.customer_phone ?? '').toString().includes(searchQuery)
-    );
+    if (!searchQuery.trim()) return orders;
+    return searchResults;
   };
 
   // ==============================
@@ -822,6 +847,11 @@ function Kitchen() {
         <div className="text-center text-white text-lg py-20">
           <div className="animate-spin text-6xl mb-4">⏳</div>
           <p>Loading orders...</p>
+        </div>
+      ) : searchLoading ? (
+        <div className="text-center text-white text-lg py-20">
+          <div className="animate-spin text-6xl mb-4">🔍</div>
+          <p>Searching all orders...</p>
         </div>
       ) : filteredOrders.length === 0 && searchQuery ? (
         <div className="text-center text-white text-lg py-20">
