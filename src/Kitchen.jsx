@@ -581,11 +581,20 @@ function Kitchen() {
     return { elapsedMins, urgency, urgencyColor };
   };
 
-  // Format elapsed time display
+  // Format elapsed time display (urgency badge)
   const formatElapsedTime = (mins) => {
     if (mins < 1) return "Now";
     if (mins === 1) return "1 min";
     return `${mins} mins`;
+  };
+
+  // Live timer: Xm Ys from created_at using current clockTime
+  const formatLiveTimer = (createdAt) => {
+    const elapsed = Math.max(0, Math.floor((clockTime.getTime() - new Date(createdAt).getTime()) / 1000));
+    if (elapsed < 60) return `${elapsed}s`;
+    const m = Math.floor(elapsed / 60);
+    const s = elapsed % 60;
+    return `${m}m ${s.toString().padStart(2, '0')}s`;
   };
 
   // Calculate queue statistics
@@ -884,6 +893,18 @@ function Kitchen() {
 
                 {/* Header */}
                 <div className="bg-gradient-to-r from-orange-500 to-red-500 text-white rounded-lg p-3 mb-3">
+                  <div className="flex justify-between items-center mb-1">
+                    <span className={`${fullscreenMode ? "text-sm" : "text-xs"} opacity-90 font-semibold`}>
+                      👨‍💼 {order.cashier_name || '—'}
+                    </span>
+                    <span className={`font-black px-2 py-1 rounded text-xs ${
+                      order.status === 'Pending'   ? 'bg-white text-red-600 animate-pulse' :
+                      order.status === 'Confirmed' ? 'bg-white text-orange-500 animate-pulse' :
+                                                     'bg-white/20 text-white'
+                    }`}>
+                      ⏱ {formatLiveTimer(order.created_at)}
+                    </span>
+                  </div>
                   <h2 className={`${fullscreenMode ? "text-4xl" : "text-2xl"} font-black text-center`}>
                     #{order.order_number}
                   </h2>
@@ -957,9 +978,16 @@ function Kitchen() {
                             <span className={`font-bold text-gray-800 ${fullscreenMode ? "text-base" : "text-sm"}`}>
                               {item.name}
                             </span>
-                            <span className="bg-orange-500 text-white px-2 py-1 rounded-full text-xs font-black">
-                              x{item.quantity}
-                            </span>
+                            <div className="flex flex-col items-end gap-1 ml-2 shrink-0">
+                              <span className="bg-orange-500 text-white px-2 py-1 rounded-full text-xs font-black">
+                                x{item.quantity}
+                              </span>
+                              {(item.totalPrice != null || item.finalPrice != null) && (
+                                <span className={`font-bold text-green-700 ${fullscreenMode ? "text-sm" : "text-xs"}`}>
+                                  PKR {item.totalPrice ?? item.finalPrice}
+                                </span>
+                              )}
+                            </div>
                           </div>
 
                           {Array.isArray(item.sauces) && item.sauces.length > 0 && (
