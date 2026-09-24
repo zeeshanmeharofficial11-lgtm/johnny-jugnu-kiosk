@@ -4,6 +4,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import App from "./App.jsx";
 import Kitchen from "./Kitchen.jsx";
 import Manager from "./Manager.jsx";
+import CallCenter from "./CallCenter.jsx";
 import "./input.css";
 
 ReactDOM.createRoot(document.getElementById("root")).render(
@@ -13,6 +14,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
         <Route path="/" element={<App />} />
         <Route path="/kitchen" element={<Kitchen />} />
         <Route path="/manager" element={<Manager />} />
+        <Route path="/callcenter" element={<CallCenter />} />
       </Routes>
     </BrowserRouter>
   </React.StrictMode>
