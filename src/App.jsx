@@ -3,10 +3,13 @@ import { ShoppingCart, Plus, Minus, Trash2, Clock, MapPin, User, X, Settings, Ed
 import html2canvas from "html2canvas";
 import './App.css';
 
-// Helper: compute display address (handles EXE Not Working + manual address)
+// Dropdown values that mean "no preset fits, type the address manually"
+const MANUAL_ADDRESS_TRIGGERS = ['EXE Not Working', 'OTHER_MANUAL'];
+
+// Helper: compute display address (handles EXE Not Working + "Other" manual address)
 const getDisplayAddress = (customer) => {
   if (!customer) return '';
-  if (customer.address === 'EXE Not Working') {
+  if (MANUAL_ADDRESS_TRIGGERS.includes(customer.address)) {
     if (customer.manualAddress && customer.manualAddress.trim() !== '') {
       return customer.manualAddress.trim();
     }
@@ -2523,11 +2526,12 @@ function App() {
 
   // Customer Information Step
   if (currentStep === 'customer') {
-    const isExeAddress = orderType === 'delivery' && customerInfo.address === 'EXE Not Working';
+    const needsManualAddress =
+      orderType === 'delivery' && MANUAL_ADDRESS_TRIGGERS.includes(customerInfo.address);
     const deliveryIncomplete =
       orderType === 'delivery' && (
         !customerInfo.address ||
-        (isExeAddress && (!customerInfo.manualAddress || !customerInfo.manualAddress.trim()))
+        (needsManualAddress && (!customerInfo.manualAddress || !customerInfo.manualAddress.trim()))
       );
 
     return (
@@ -2611,13 +2615,14 @@ function App() {
                   {adminConfig.addresses.map(opt => (
                     <option key={opt.id} value={opt.value}>{opt.label}</option>
                   ))}
+                  <option value="OTHER_MANUAL">🏠 Other (Address Not Listed — Type Manually)</option>
                 </select>
               </div>
 
-              {isExeAddress && (
+              {needsManualAddress && (
                 <div className="mt-4">
                   <label className="block text-sm font-medium mb-2">
-                    Manual Delivery Address (EXE Not Working) *
+                    Manual Delivery Address *
                   </label>
                   <textarea
                     value={customerInfo.manualAddress}
