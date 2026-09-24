@@ -93,6 +93,8 @@ function downloadOrderTicket(order) {
     .map((it) => {
       const qty = it.quantity ?? 1;
       const name = esc(it.name ?? "Item");
+      const unitPrice = it.unitPrice ?? it.finalPrice ?? 0;
+      const lineTotal = it.totalPrice ?? unitPrice * qty;
 
       const sauces =
         Array.isArray(it.sauces) && it.sauces.length ? it.sauces : [];
@@ -128,8 +130,9 @@ function downloadOrderTicket(order) {
         <div class="item">
           <div class="row">
             <div class="left"><b>${name}</b></div>
-            <div class="right">x${esc(qty)}</div>
+            <div class="right">PKR ${esc(lineTotal)}</div>
           </div>
+          <div class="subline">Qty ${esc(qty)} × PKR ${esc(unitPrice)}</div>
           ${saucesHtml}
           ${addonsHtml}
           ${seasoning}
@@ -153,16 +156,17 @@ function downloadOrderTicket(order) {
     .muted { opacity: .75; font-size: 12px; margin-top: 4px; }
     .divider { border-top: 1px dashed #333; margin: 10px 0; }
     .row { display: flex; justify-content: space-between; gap: 10px; }
-    .left { flex: 1; }
+    .left { flex: 1; word-break: break-word; overflow-wrap: break-word; }
     .right { white-space: nowrap; font-weight: 700; }
     .label { font-size: 12px; font-weight: 700; }
-    .value { font-size: 12px; margin-top: 2px; word-break: break-word; }
+    .value { font-size: 12px; margin-top: 2px; word-break: break-word; overflow-wrap: break-word; }
     .item { padding: 8px 0; border-bottom: 1px dashed #ddd; }
     .item:last-child { border-bottom: 0; }
-    .subline { font-size: 11px; margin-top: 4px; opacity: .9; }
+    .subline { font-size: 11px; margin-top: 4px; opacity: .9; word-break: break-word; overflow-wrap: break-word; }
     .pill { display: inline-block; padding: 4px 8px; border: 1px solid #111; border-radius: 999px; font-size: 11px; font-weight: 700; margin: 6px 4px 0 0; }
+    .totalsRow { display: flex; justify-content: space-between; gap: 10px; font-size: 13px; margin-top: 4px; }
     .total { font-size: 16px; font-weight: 900; }
-    .warn { margin-top: 6px; padding: 6px; border: 1px solid #b91c1c; background: #fee2e2; font-size: 11px; font-weight: 800; }
+    .warn { margin-top: 6px; padding: 6px; border: 1px solid #b91c1c; background: #fee2e2; font-size: 11px; font-weight: 800; word-break: break-word; overflow-wrap: break-word; }
     @media print { @page { margin: 8mm; } }
   </style>
 </head>
@@ -214,8 +218,14 @@ function downloadOrderTicket(order) {
 
     <div class="divider"></div>
 
-    <div class="row">
-      <div class="left"><b>TOTAL</b></div>
+    <div class="totalsRow"><div class="left">Items Subtotal</div><div class="right">PKR ${esc(order.items_total ?? order.grand_total)}</div></div>
+    ${
+      order.delivery_charge > 0
+        ? `<div class="totalsRow"><div class="left">Delivery Charge</div><div class="right">PKR ${esc(order.delivery_charge)}</div></div>`
+        : ""
+    }
+    <div class="row" style="margin-top:6px;">
+      <div class="left"><b>GRAND TOTAL</b></div>
       <div class="right total">PKR ${esc(order.grand_total)}</div>
     </div>
 
