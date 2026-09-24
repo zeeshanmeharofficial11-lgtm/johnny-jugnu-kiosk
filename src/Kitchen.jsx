@@ -89,8 +89,11 @@ function downloadOrderTicket(order) {
       .replaceAll('"', "&quot;")
       .replaceAll("'", "&#039;");
 
+  const addonLabel = (a) =>
+    typeof a === "string" ? a : a.price ? `${a.name} (+PKR ${a.price})` : a.name;
+
   const itemLinesHtml = items
-    .map((it) => {
+    .map((it, idx) => {
       const qty = it.quantity ?? 1;
       const name = esc(it.name ?? "Item");
       const unitPrice = it.unitPrice ?? it.finalPrice ?? 0;
@@ -122,14 +125,14 @@ function downloadOrderTicket(order) {
 
       const addonsHtml = addons.length
         ? `<div class="subline"><b>➕ Add-ons:</b> ${esc(
-            addons.join(", ")
+            addons.map(addonLabel).join(", ")
           )}</div>`
         : "";
 
       return `
         <div class="item">
           <div class="row">
-            <div class="left"><b>${name}</b></div>
+            <div class="left"><span class="itemNum">${idx + 1}.</span><b>${name}</b></div>
             <div class="right">PKR ${esc(lineTotal)}</div>
           </div>
           <div class="subline">Qty ${esc(qty)} × PKR ${esc(unitPrice)}</div>
@@ -160,11 +163,15 @@ function downloadOrderTicket(order) {
     .right { white-space: nowrap; font-weight: 700; }
     .label { font-size: 12px; font-weight: 700; }
     .value { font-size: 12px; margin-top: 2px; word-break: break-word; overflow-wrap: break-word; }
-    .item { padding: 8px 0; border-bottom: 1px dashed #ddd; }
+    .item { padding: 10px 0; border-bottom: 1px dashed #bbb; }
     .item:last-child { border-bottom: 0; }
+    .itemNum { color: #999; font-weight: 700; margin-right: 4px; }
     .subline { font-size: 11px; margin-top: 4px; opacity: .9; word-break: break-word; overflow-wrap: break-word; }
     .pill { display: inline-block; padding: 4px 8px; border: 1px solid #111; border-radius: 999px; font-size: 11px; font-weight: 700; margin: 6px 4px 0 0; }
+    .totalsBox { background: #f7f7f7; border: 1px solid #e6e6e6; border-radius: 6px; padding: 8px 10px; margin-top: 4px; }
     .totalsRow { display: flex; justify-content: space-between; gap: 10px; font-size: 13px; margin-top: 4px; }
+    .totalsRow:first-child { margin-top: 0; }
+    .grandRow { border-top: 2px solid #111; margin-top: 8px; padding-top: 8px; }
     .total { font-size: 16px; font-weight: 900; }
     .warn { margin-top: 6px; padding: 6px; border: 1px solid #b91c1c; background: #fee2e2; font-size: 11px; font-weight: 800; word-break: break-word; overflow-wrap: break-word; }
     @media print { @page { margin: 8mm; } }
@@ -179,7 +186,9 @@ function downloadOrderTicket(order) {
         order.order_number
       )}</div>
       <div class="muted">${esc(createdStr)}</div>
-      <div class="muted">Branch: <b>${esc(order.branch)}</b></div>
+      <div class="muted">Branch: <b>${esc(order.branch)}</b>${
+        order.cashier_name ? ` · Cashier: <b>${esc(order.cashier_name)}</b>` : ""
+      }</div>
     </div>
 
     <div class="divider"></div>
@@ -218,15 +227,17 @@ function downloadOrderTicket(order) {
 
     <div class="divider"></div>
 
-    <div class="totalsRow"><div class="left">Items Subtotal</div><div class="right">PKR ${esc(order.items_total ?? order.grand_total)}</div></div>
-    ${
-      order.delivery_charge > 0
-        ? `<div class="totalsRow"><div class="left">Delivery Charge</div><div class="right">PKR ${esc(order.delivery_charge)}</div></div>`
-        : ""
-    }
-    <div class="row" style="margin-top:6px;">
-      <div class="left"><b>GRAND TOTAL</b></div>
-      <div class="right total">PKR ${esc(order.grand_total)}</div>
+    <div class="totalsBox">
+      <div class="totalsRow"><div class="left">Items Subtotal</div><div class="right">PKR ${esc(order.items_total ?? order.grand_total)}</div></div>
+      ${
+        order.delivery_charge > 0
+          ? `<div class="totalsRow"><div class="left">Delivery Charge</div><div class="right">PKR ${esc(order.delivery_charge)}</div></div>`
+          : ""
+      }
+      <div class="row grandRow">
+        <div class="left"><b>GRAND TOTAL</b></div>
+        <div class="right total">PKR ${esc(order.grand_total)}</div>
+      </div>
     </div>
 
     <div class="divider"></div>
@@ -1052,7 +1063,9 @@ function Kitchen() {
                               </p>
                               <ul className={`ml-4 list-disc text-gray-700 ${fullscreenMode ? "text-sm" : "text-xs"}`}>
                                 {addons.map((a, idx) => (
-                                  <li key={idx}>{a}</li>
+                                  <li key={idx}>
+                                    {typeof a === "string" ? a : a.price ? `${a.name} (+PKR ${a.price})` : a.name}
+                                  </li>
                                 ))}
                               </ul>
                             </div>

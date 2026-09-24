@@ -1162,7 +1162,10 @@ function App() {
         withSeasoning: !!item.withSeasoning,
         category: item.category,
         sauces: item.sauces ? item.sauces.map(s => (typeof s === 'string' ? s : s.name)) : [],
-        addons: item.addons ? item.addons.map(a => (typeof a === 'string' ? a : a.name)) : [],
+        // Keep each add-on's price so tickets can show a per-addon cost breakdown
+        addons: item.addons
+          ? item.addons.map(a => (typeof a === 'string' ? { name: a, price: 0 } : { name: a.name, price: a.price || 0 }))
+          : [],
         remarks: item.remarks || ''
       })),
       itemsTotal: cart.reduce((t, i) => t + (i.finalPrice * i.quantity), 0),
