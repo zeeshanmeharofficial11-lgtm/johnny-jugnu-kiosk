@@ -67,6 +67,8 @@ function App() {
   const [editingItem, setEditingItem] = useState(null);
   const [adminConfigLoading, setAdminConfigLoading] = useState(true);
   const [adminSaving, setAdminSaving] = useState(false);
+  // Draft values for the "add new menu item" mini-form, keyed by category id
+  const [newItemForms, setNewItemForms] = useState({});
 
   const ADMIN_PASSWORD = import.meta.env.VITE_ADMIN_PASSWORD; // set in .env, change via deployment config
 
@@ -115,7 +117,11 @@ function App() {
       }
     ],
     // Per-item overrides for menu items
-    menuOverrides: {}   // { [itemId]: { name, price, description, withSeasoning, enabled } }
+    menuOverrides: {},  // { [itemId]: { name, price, description, withSeasoning, enabled } }
+    // Brand-new menu items added from the Admin Panel (not part of the hardcoded menuData)
+    customMenuItems: [], // [{ id, category, name, price, image, description, enabled }]
+    // Manual display order per category: { [categoryId]: [itemId, itemId, ...] }
+    categoryOrder: {}
   };
 
   const [adminConfig, setAdminConfig] = useState(DEFAULT_ADMIN_CONFIG);
@@ -261,6 +267,10 @@ function App() {
               rawConfig.menuOverrides || DEFAULT_ADMIN_CONFIG.menuOverrides,
             users:
               rawConfig.users || DEFAULT_ADMIN_CONFIG.users,
+            customMenuItems:
+              rawConfig.customMenuItems || DEFAULT_ADMIN_CONFIG.customMenuItems,
+            categoryOrder:
+              rawConfig.categoryOrder || DEFAULT_ADMIN_CONFIG.categoryOrder,
           };
 
           console.log('✅ Admin config loaded from Supabase:', mergedConfig);
@@ -539,11 +549,25 @@ function App() {
     { id: 'lemonades', name: 'Lemonades', icon: '🥤' }
   ];
 
-  // Helper: apply admin menu overrides (price/name/description/visibility)
+  // Sort a list of items by adminConfig.categoryOrder[categoryId], if one is set.
+  // Items not listed in the saved order keep their original relative order, appended at the end.
+  const applyCategoryOrder = (categoryId, itemsList) => {
+    const order = (adminConfig.categoryOrder || {})[categoryId];
+    if (!order || order.length === 0) return itemsList;
+    const orderIndex = new Map(order.map((id, idx) => [id, idx]));
+    return [...itemsList].sort((a, b) => {
+      const ai = orderIndex.has(a.id) ? orderIndex.get(a.id) : Number.MAX_SAFE_INTEGER;
+      const bi = orderIndex.has(b.id) ? orderIndex.get(b.id) : Number.MAX_SAFE_INTEGER;
+      return ai - bi;
+    });
+  };
+
+  // Helper: apply admin menu overrides (price/name/description/visibility),
+  // merge in admin-added custom items, then apply the admin's saved sort order.
   const getEffectiveMenuItems = (categoryId) => {
     const overrides = adminConfig.menuOverrides || {};
 
-    return (menuData[categoryId] || [])
+    const baseItems = (menuData[categoryId] || [])
       .map((item) => {
         const ov = overrides[item.id];
         if (!ov) return item;
@@ -566,6 +590,22 @@ function App() {
         // enabled === false → hide item
         return ov && ov.enabled === false ? false : true;
       });
+
+    const customItems = (adminConfig.customMenuItems || []).filter(
+      (ci) => ci.category === categoryId && ci.enabled !== false
+    );
+
+    return applyCategoryOrder(categoryId, [...baseItems, ...customItems]);
+  };
+
+  // Admin-only: same as getEffectiveMenuItems but keeps disabled items visible
+  // (so admin can still find and re-enable them) and tags custom vs. built-in items.
+  const getAdminItemsForCategory = (categoryId) => {
+    const hardcoded = (menuData[categoryId] || []).map((item) => ({ ...item, isCustom: false }));
+    const custom = (adminConfig.customMenuItems || [])
+      .filter((ci) => ci.category === categoryId)
+      .map((ci) => ({ ...ci, isCustom: true }));
+    return applyCategoryOrder(categoryId, [...hardcoded, ...custom]);
   };
 
   // Admin Functions
@@ -806,6 +846,84 @@ function App() {
     };
 
     await updateAdminConfig(newConfig);
+  };
+
+  // ====== NEW: Custom Menu Items (admin-added, not part of hardcoded menuData) ======
+  const addCustomMenuItem = async (categoryId, draft) => {
+    const name = (draft.name || '').trim();
+    if (!name) {
+      alert('Please enter an item name.');
+      return;
+    }
+
+    const allIds = [
+      ...Object.values(menuData).flat().map((i) => i.id),
+      ...(adminConfig.customMenuItems || []).map((i) => i.id)
+    ];
+    const newId = Math.max(1000, ...allIds) + 1;
+
+    const newItem = {
+      id: newId,
+      category: categoryId,
+      name,
+      price: parseInt(draft.price) || 0,
+      image: draft.image && draft.image.trim() ? draft.image.trim() : '🍽️',
+      description: (draft.description || '').trim(),
+      enabled: true
+    };
+
+    const newConfig = {
+      ...adminConfig,
+      customMenuItems: [...(adminConfig.customMenuItems || []), newItem]
+    };
+    await updateAdminConfig(newConfig);
+  };
+
+  const updateCustomMenuItem = async (itemId, changes) => {
+    const items = (adminConfig.customMenuItems || []).map((i) =>
+      i.id === itemId ? { ...i, ...changes } : i
+    );
+    await updateAdminConfig({ ...adminConfig, customMenuItems: items });
+  };
+
+  const deleteCustomMenuItem = async (itemId) => {
+    if (!window.confirm('Delete this menu item? This cannot be undone.')) return;
+    const items = (adminConfig.customMenuItems || []).filter((i) => i.id !== itemId);
+    await updateAdminConfig({ ...adminConfig, customMenuItems: items });
+  };
+
+  // Move an item earlier/later within its category's punching order
+  const moveItemInCategory = async (categoryId, itemId, direction) => {
+    const currentItems = getAdminItemsForCategory(categoryId);
+    const currentOrder = currentItems.map((i) => i.id);
+
+    const idx = currentOrder.indexOf(itemId);
+    const swapWith = direction === 'up' ? idx - 1 : idx + 1;
+    if (idx === -1 || swapWith < 0 || swapWith >= currentOrder.length) return;
+
+    const newOrder = [...currentOrder];
+    [newOrder[idx], newOrder[swapWith]] = [newOrder[swapWith], newOrder[idx]];
+
+    const newConfig = {
+      ...adminConfig,
+      categoryOrder: { ...(adminConfig.categoryOrder || {}), [categoryId]: newOrder }
+    };
+    await updateAdminConfig(newConfig);
+  };
+
+  const emptyNewItemDraft = { name: '', price: '', image: '', description: '' };
+
+  const updateNewItemDraft = (categoryId, field, value) => {
+    setNewItemForms((prev) => ({
+      ...prev,
+      [categoryId]: { ...(prev[categoryId] || emptyNewItemDraft), [field]: value }
+    }));
+  };
+
+  const submitNewItem = async (categoryId) => {
+    const draft = newItemForms[categoryId] || emptyNewItemDraft;
+    await addCustomMenuItem(categoryId, draft);
+    setNewItemForms((prev) => ({ ...prev, [categoryId]: emptyNewItemDraft }));
   };
 
   // Login handler using adminConfig.users (with fallback to hardcoded creds)
@@ -2118,7 +2236,7 @@ function App() {
               <div>
                 <h2 className="text-2xl font-bold mb-2">Menu &amp; Pricing</h2>
                 <p className="text-sm text-gray-600 mb-6">
-                  Edit item names, prices, descriptions, or hide items from the kiosk. Changes sync to all kiosks via Supabase.
+                  Edit item names, prices, descriptions, or hide items from the kiosk. Use ▲▼ to change the punching order within a category, or add a brand-new item at the bottom of each category. Changes sync to all kiosks via Supabase.
                 </p>
 
                 <div className="space-y-6">
@@ -2130,35 +2248,68 @@ function App() {
                       </h3>
 
                       <div className="space-y-3">
-                        {(menuData[cat.id] || []).map((item) => {
+                        {getAdminItemsForCategory(cat.id).map((item, idx, arr) => {
                           const overrides = adminConfig.menuOverrides || {};
-                          const ov = overrides[item.id] || {};
+                          const ov = item.isCustom ? {} : overrides[item.id] || {};
 
-                          const effectivePrice =
-                            ov.price !== undefined ? ov.price : item.price;
+                          const effectivePrice = item.isCustom
+                            ? item.price
+                            : ov.price !== undefined ? ov.price : item.price;
 
                           const effectiveWithSeasoning =
-                            item.withSeasoning !== undefined
+                            !item.isCustom && item.withSeasoning !== undefined
                               ? ov.withSeasoning !== undefined
                                 ? ov.withSeasoning
                                 : item.withSeasoning
                               : undefined;
 
-                          const enabled = ov.enabled === false ? false : true;
+                          const enabled = item.isCustom
+                            ? item.enabled !== false
+                            : ov.enabled === false ? false : true;
+
+                          const reorderButtons = (
+                            <div className="flex md:flex-col gap-1">
+                              <button
+                                onClick={() => moveItemInCategory(cat.id, item.id, 'up')}
+                                disabled={idx === 0}
+                                title="Move earlier in punching order"
+                                className="px-2 py-1 rounded border border-gray-300 text-xs font-bold disabled:opacity-30 disabled:cursor-not-allowed hover:bg-gray-100"
+                              >
+                                ▲
+                              </button>
+                              <button
+                                onClick={() => moveItemInCategory(cat.id, item.id, 'down')}
+                                disabled={idx === arr.length - 1}
+                                title="Move later in punching order"
+                                className="px-2 py-1 rounded border border-gray-300 text-xs font-bold disabled:opacity-30 disabled:cursor-not-allowed hover:bg-gray-100"
+                              >
+                                ▼
+                              </button>
+                            </div>
+                          );
 
                           return (
                             <div
                               key={item.id}
                               className="bg-gray-50 p-3 rounded-lg border flex flex-col md:flex-row md:items-center md:justify-between gap-3"
                             >
+                              <div className="flex md:block items-center gap-2">
+                                {reorderButtons}
+                              </div>
+
                               <div className="w-full md:w-3/4">
                                 <div className="flex items-center gap-2 mb-2">
                                   <span className="text-2xl">{item.image}</span>
                                   <div>
-                                    <div className="font-semibold">
+                                    <div className="font-semibold flex items-center gap-2">
                                       {ov.name !== undefined && ov.name.trim() !== ''
                                         ? ov.name
                                         : item.name}
+                                      {item.isCustom && (
+                                        <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-bold">
+                                          Custom
+                                        </span>
+                                      )}
                                     </div>
                                     <div className="text-xs text-gray-500">
                                       ID: {item.id} • Category: {cat.name}
@@ -2173,11 +2324,11 @@ function App() {
                                     </label>
                                     <input
                                       type="text"
-                                      value={ov.name !== undefined ? ov.name : item.name}
+                                      value={item.isCustom ? item.name : (ov.name !== undefined ? ov.name : item.name)}
                                       onChange={(e) =>
-                                        updateMenuItemOverride(item.id, {
-                                          name: e.target.value
-                                        })
+                                        item.isCustom
+                                          ? updateCustomMenuItem(item.id, { name: e.target.value })
+                                          : updateMenuItemOverride(item.id, { name: e.target.value })
                                       }
                                       className="w-full p-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500"
                                     />
@@ -2192,9 +2343,9 @@ function App() {
                                       min="0"
                                       value={effectivePrice}
                                       onChange={(e) =>
-                                        updateMenuItemOverride(item.id, {
-                                          price: parseInt(e.target.value) || 0
-                                        })
+                                        item.isCustom
+                                          ? updateCustomMenuItem(item.id, { price: parseInt(e.target.value) || 0 })
+                                          : updateMenuItemOverride(item.id, { price: parseInt(e.target.value) || 0 })
                                       }
                                       className="w-full p-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500"
                                     />
@@ -2226,14 +2377,16 @@ function App() {
                                     <input
                                       type="text"
                                       value={
-                                        ov.description !== undefined
+                                        item.isCustom
+                                          ? item.description || ''
+                                          : ov.description !== undefined
                                           ? ov.description
                                           : item.description || ''
                                       }
                                       onChange={(e) =>
-                                        updateMenuItemOverride(item.id, {
-                                          description: e.target.value
-                                        })
+                                        item.isCustom
+                                          ? updateCustomMenuItem(item.id, { description: e.target.value })
+                                          : updateMenuItemOverride(item.id, { description: e.target.value })
                                       }
                                       className="w-full p-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500"
                                       placeholder="Optional line under item name"
@@ -2245,9 +2398,9 @@ function App() {
                               <div className="flex flex-col gap-2 items-stretch md:items-end md:w-1/4">
                                 <button
                                   onClick={() =>
-                                    updateMenuItemOverride(item.id, {
-                                      enabled: !enabled
-                                    })
+                                    item.isCustom
+                                      ? updateCustomMenuItem(item.id, { enabled: !enabled })
+                                      : updateMenuItemOverride(item.id, { enabled: !enabled })
                                   }
                                   className={`px-3 py-2 rounded-lg text-sm font-semibold ${
                                     enabled
@@ -2258,7 +2411,15 @@ function App() {
                                   {enabled ? 'Visible in Menu' : 'Hidden'}
                                 </button>
 
-                                {adminConfig.menuOverrides &&
+                                {item.isCustom ? (
+                                  <button
+                                    onClick={() => deleteCustomMenuItem(item.id)}
+                                    className="px-3 py-2 rounded-lg text-xs font-semibold border border-red-300 text-red-700 hover:bg-red-50"
+                                  >
+                                    Delete Item
+                                  </button>
+                                ) : (
+                                  adminConfig.menuOverrides &&
                                   adminConfig.menuOverrides[item.id] && (
                                     <button
                                       onClick={() => resetMenuItemOverride(item.id)}
@@ -2266,11 +2427,56 @@ function App() {
                                     >
                                       Reset to Default
                                     </button>
-                                  )}
+                                  )
+                                )}
                               </div>
                             </div>
                           );
                         })}
+                      </div>
+
+                      {/* Add a brand-new item to this category */}
+                      <div className="mt-4 bg-purple-50 border border-purple-200 rounded-lg p-3">
+                        <div className="text-sm font-semibold text-purple-800 mb-2">
+                          + Add New Item to {cat.name}
+                        </div>
+                        <div className="grid gap-2 md:grid-cols-4">
+                          <input
+                            type="text"
+                            placeholder="Name *"
+                            value={(newItemForms[cat.id] || emptyNewItemDraft).name}
+                            onChange={(e) => updateNewItemDraft(cat.id, 'name', e.target.value)}
+                            className="w-full p-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500"
+                          />
+                          <input
+                            type="number"
+                            min="0"
+                            placeholder="Price (PKR)"
+                            value={(newItemForms[cat.id] || emptyNewItemDraft).price}
+                            onChange={(e) => updateNewItemDraft(cat.id, 'price', e.target.value)}
+                            className="w-full p-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500"
+                          />
+                          <input
+                            type="text"
+                            placeholder="Emoji (optional)"
+                            value={(newItemForms[cat.id] || emptyNewItemDraft).image}
+                            onChange={(e) => updateNewItemDraft(cat.id, 'image', e.target.value)}
+                            className="w-full p-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500"
+                          />
+                          <button
+                            onClick={() => submitNewItem(cat.id)}
+                            className="bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-semibold px-3 py-2"
+                          >
+                            Add Item
+                          </button>
+                        </div>
+                        <input
+                          type="text"
+                          placeholder="Description (optional)"
+                          value={(newItemForms[cat.id] || emptyNewItemDraft).description}
+                          onChange={(e) => updateNewItemDraft(cat.id, 'description', e.target.value)}
+                          className="w-full mt-2 p-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500"
+                        />
                       </div>
                     </div>
                   ))}
