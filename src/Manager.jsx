@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { createClient } from '@supabase/supabase-js';
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://lugtmmcpcgzyytkzqozn.supabase.co';
-const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx1Z3RtbWNwY2d6eXl0a3pxb3puIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkzODk0MDQsImV4cCI6MjA3NDk2NTQwNH0.uSEDsRNpH_QGwgGxrrxuYKCkuH3lszd8O9w7GN9INpE';
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-const MANAGER_PASSWORD = 'manager123';
+const MANAGER_PASSWORD = import.meta.env.VITE_MANAGER_PASSWORD;
+const ADMIN_PASSWORD = import.meta.env.VITE_ADMIN_PASSWORD;
 
 const STATUS_STYLES = {
   Pending:   { badge: 'bg-yellow-100 text-yellow-700', dot: 'bg-yellow-400' },
@@ -42,7 +43,7 @@ export default function Manager() {
 
   // ── Auth ──────────────────────────────────────────────
   const login = () => {
-    if (password === MANAGER_PASSWORD || password === 'admin123') {
+    if (password === MANAGER_PASSWORD || password === ADMIN_PASSWORD) {
       sessionStorage.setItem('mgr', '1');
       setLoggedIn(true);
       setLoginError('');
@@ -166,7 +167,6 @@ export default function Manager() {
               Login
             </button>
           </div>
-          <p className="text-xs text-gray-400 text-center mt-4">Default password: manager123</p>
         </div>
       </div>
     );

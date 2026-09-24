@@ -65,7 +65,7 @@ function App() {
   const [adminConfigLoading, setAdminConfigLoading] = useState(true);
   const [adminSaving, setAdminSaving] = useState(false);
 
-  const ADMIN_PASSWORD = 'admin123'; // Change this to a secure password
+  const ADMIN_PASSWORD = import.meta.env.VITE_ADMIN_PASSWORD; // set in .env, change via deployment config
 
   // Default admin config
   const DEFAULT_ADMIN_CONFIG = {
@@ -186,8 +186,8 @@ function App() {
     setTimeout(() => saveSession(step), 0);
   };
 
-  const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://lugtmmcpcgzyytkzqozn.supabase.co';
-  const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx1Z3RtbWNwY2d6eXl0a3pxb3puIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkzODk0MDQsImV4cCI6MjA3NDk2NTQwNH0.uSEDsRNpH_QGwgGxrrxuYKCkuH3lszd8O9w7GN9INpE';
+  const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+  const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
   // ======== SUPABASE ADMIN CONFIG FUNCTIONS =========
   
@@ -1132,8 +1132,10 @@ function App() {
     setIsSubmitting(true);
     setSubmitError(null);
 
-    // Reuse existing order number on retry so we don't create duplicates
-    const newOrderNumber = orderNumber ?? Math.floor(Math.random() * 10000);
+    // Reuse existing order number on retry so we don't create duplicates.
+    // Derived from the epoch millisecond timestamp (monotonically increasing)
+    // instead of Math.random(0-9999), which collided constantly at real order volume.
+    const newOrderNumber = orderNumber ?? Number(String(Date.now()).slice(-6));
     if (!orderNumber) setOrderNumber(newOrderNumber);
 
     const effectiveAddress = getDisplayAddress(customerInfo);

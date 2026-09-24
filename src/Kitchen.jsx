@@ -2,12 +2,8 @@ import React, { useEffect, useState, useMemo, useRef } from "react";
 import { createClient } from "@supabase/supabase-js";
 
 // ✅ Supabase connection
-const SUPABASE_URL =
-  import.meta.env.VITE_SUPABASE_URL ||
-  "https://lugtmmcpcgzyytkzqozn.supabase.co";
-const SUPABASE_ANON_KEY =
-  import.meta.env.VITE_SUPABASE_ANON_KEY ||
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx1Z3RtbWNwY2d6eXl0a3pxb3puIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkzODk0MDQsImV4cCI6MjA3NDk2NTQwNH0.uSEDsRNpH_QGwgGxrrxuYKCkuH3lszd8O9w7GN9INpE";
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -290,7 +286,10 @@ function Kitchen() {
   const selectedBranchRef = useRef(selectedBranch);
   useEffect(() => { selectedBranchRef.current = selectedBranch; }, [selectedBranch]);
 
-  const HARD_CODED_USER = { id: "kitchen", password: "9696" };
+  const HARD_CODED_USER = {
+    id: import.meta.env.VITE_KITCHEN_USER,
+    password: import.meta.env.VITE_KITCHEN_PASSWORD,
+  };
 
   const playNewOrderSound = () => {
     try {
